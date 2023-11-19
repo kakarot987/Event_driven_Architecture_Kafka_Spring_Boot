@@ -1,2 +1,3 @@
+include ':spring_cloud:EurekaServer'
 include ':microservices:AdminBoard'
 include ':microservices:Authentication_Authorization'
