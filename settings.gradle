@@ -1,3 +1,4 @@
-include ':spring_cloud:EurekaServer'
-include ':microservices:AdminBoard'
-include ':microservices:Authentication_Authorization'
+include ':spring_cloud:eureka-server'
+include ':spring_cloud:config-server'
+include ':microservices:admin-panel'
+include ':microservices:authentication-authorization'
