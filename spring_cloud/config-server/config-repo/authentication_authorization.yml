@@ -1,0 +1,35 @@
+api:
+
+  common:
+    version: 1.0.0
+    title: Sample API
+    description: Description of the API...
+    termsOfServiceUrl: MINE TERMS OF SERVICE URL
+    license: License
+    licenseUrl: MY LICENSE URL
+
+    contact:
+      name: Contact
+      url: My
+      email: me@mail.com
+
+server.port: 7008
+server.error.include-message: always
+
+ribbon.ServerListRefreshInterval: 5000
+
+ribbon.NFLoadBalancerPingInterval: 5
+
+spring.security.oauth2.resourceserver.jwt.jwk-set-uri: http://${app.auth-server}:9999/.well-known/jwks.json
+
+# Strongly recommend to set this property to "none" in a production environment!
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+        type:
+          descriptor:
+            sql:
+              BasicBinder: 'TRACE '
