@@ -10,13 +10,6 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
       - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
-    extra_hosts:
-      localhost: 172.31.29.109
-      mysql: 172.17.0.1
-      mysql1: 172.19.0.1
-      mysql2: 172.20.0.1
-      mysql3: 172.18.0.1
-      mysql4: 172.21.0.1
 
   admin-panel:
     build: microservices/admin-panel
@@ -27,13 +20,6 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
       - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
-    extra_hosts:
-      localhost: 172.31.29.109
-      mysql: 172.17.0.1
-      mysql1: 172.19.0.1
-      mysql2: 172.20.0.1
-      mysql3: 172.18.0.1
-      mysql4: 172.21.0.1
 
   eureka:
     build: spring_cloud/eureka-server
@@ -56,6 +42,18 @@ services:
       - ENCRYPT_KEY=${CONFIG_SERVER_ENCRYPT_KEY}
       - SPRING_SECURITY_USER_NAME=${CONFIG_SERVER_USR}
       - SPRING_SECURITY_USER_PASSWORD=${CONFIG_SERVER_PWD}
+
+  gateway:
+    build: spring-cloud/gateway
+    mem_limit: 1500m
+    networks:
+      - my-network
+    ports:
+      - "8443:8443"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
+      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
 
 networks:
   my-network:
