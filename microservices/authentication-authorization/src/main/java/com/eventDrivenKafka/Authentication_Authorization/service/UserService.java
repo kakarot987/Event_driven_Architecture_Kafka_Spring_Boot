@@ -2,7 +2,7 @@ package com.eventDrivenKafka.Authentication_Authorization.service;
 
 import com.eventDrivenKafka.Authentication_Authorization.dto.SocialLoginRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.UserDTO;
-import com.eventDrivenKafka.Authentication_Authorization.repository.UserRepository;
+import com.eventDrivenKafka.Authentication_Authorization.persistence.UserRepository;
 import org.apache.catalina.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
