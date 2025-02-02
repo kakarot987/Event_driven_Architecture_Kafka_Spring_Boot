@@ -24,7 +24,7 @@ spring:
         git:
           uri: https://github.com/kakarot987/config-repo.git
           username: kakarot987
-          password: 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
+          password: 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
           skipSslValidation: true
 ---
 spring:
@@ -37,5 +37,5 @@ spring:
         git:
           uri: https://github.com/kakarot987/config-repo.git
           username: kakarot987
-          password: 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
+          password: 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
           skipSslValidation: true
