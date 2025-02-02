@@ -1,16 +1,41 @@
-server.port: 8888
+server:
+  port: 8888
 
-spring.cloud.config.server.native.searchLocations: file:${PWD}/config-repo
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: docker
 
-# WARNING: Exposing all management endpoints over http should only be used during development, must be locked down in production!
 management.endpoint.health.show-details: "ALWAYS"
 management.endpoints.web.exposure.include: "*"
 
 logging:
-level:
-root: info
-
+  level:
+    root: info
 ---
-spring.profiles: docker
-spring.cloud.config.server.native.searchLocations: file:/config-repo
-
+spring:
+  config:
+    activate:
+      on-profile: native
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/kakarot987/config-repo.git
+          username: kakarot987
+          password: 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
+          skipSslValidation: true
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/kakarot987/config-repo.git
+          username: kakarot987
+          password: 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
+          skipSslValidation: true
