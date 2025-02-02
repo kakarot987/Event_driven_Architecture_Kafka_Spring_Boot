@@ -31,7 +31,7 @@ jobs:
           context: .
           file: ./spring_cloud/config-server/Dockerfile
           push: true
-          tags: ghcr.io/your-org/config-repo:latest
+          tags: ghcr.io/kakarot987/config-repo:latest
 
   deploy:
     runs-on: ubuntu-latest
