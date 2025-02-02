@@ -9,7 +9,7 @@ import io.swagger.annotations.ApiResponses;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@Api(description = "API to register User.")
+@Api("API to register User.")
 public interface RegisterService {
 
     @ApiResponses(value = {

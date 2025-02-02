@@ -1,60 +1,67 @@
-version: '2.1'
+version: '3.8'
 
 services:
-  authentication-authorization:
-    build: microservices/authentication-authorization
-    mem_limit: 1500m
+  eureka-server:
+    build: ./spring_cloud/eureka-server
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
-      - my-network
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
-      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
-
-  admin-panel:
-    build: microservices/admin-panel
-    mem_limit: 1500m
-    networks:
-      - my-network
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
-      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
-
-  eureka:
-    build: spring_cloud/eureka-server
-    mem_limit: 700m
-    networks:
-      - my-network
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
-      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
-
+      - cloud-network
 
   config-server:
-    build: spring_cloud/config-server
-    mem_limit: 700m
+    build: ./spring_cloud/config-server
+    ports:
+      - "8888:8888"
     networks:
-      - my-network
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker,native
-      - ENCRYPT_KEY=${CONFIG_SERVER_ENCRYPT_KEY}
-      - SPRING_SECURITY_USER_NAME=${CONFIG_SERVER_USR}
-      - SPRING_SECURITY_USER_PASSWORD=${CONFIG_SERVER_PWD}
+      - cloud-network
 
   gateway:
-    build: spring-cloud/gateway
-    mem_limit: 1500m
-    networks:
-      - my-network
+    build: ./spring_cloud/gateway
     ports:
-      - "8443:8443"
+      - "8080:8080"
+    networks:
+      - cloud-network
+
+  kafka:
+    image: bitnami/kafka:latest
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - CONFIG_SERVER_USR=${CONFIG_SERVER_USR}
-      - CONFIG_SERVER_PWD=${CONFIG_SERVER_PWD}
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - cloud-network
+
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    ports:
+      - "2181:2181"
+    networks:
+      - cloud-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: cloudarchitecturedb
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloud-network
 
 networks:
-  my-network:
-    name: my-network
+  cloud-network:
+    driver: bridge
