@@ -1,4 +1,4 @@
-name: Simple CI/CD
+name: CI/CD for Config-Repo
 
 on:
   push:
@@ -19,14 +19,6 @@ jobs:
           distribution: 'temurin'
           java-version: '23'
 
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
       - name: Set Gradle Permissions
         run: chmod +x ./gradlew
 
@@ -37,8 +29,9 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: ghcr.io/your-org/app:latest
+          tags: ghcr.io/your-org/config-repo:latest
 
   deploy:
     runs-on: ubuntu-latest

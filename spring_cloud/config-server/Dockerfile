@@ -1,7 +1,6 @@
-FROM openjdk:20-jdk
-
-EXPOSE 9000
-
-ADD ./build/libs/*.jar app.jar
-
-ENTRYPOINT ["java","-jar","/app.jar"]
+FROM eclipse-temurin:23-jdk
+WORKDIR /app
+COPY . .
+RUN ./gradlew clean build
+EXPOSE 8080
+CMD ["java", "-jar", "build/libs/config-repo.jar"]
