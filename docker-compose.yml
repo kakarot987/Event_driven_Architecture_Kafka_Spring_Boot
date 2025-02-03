@@ -20,7 +20,7 @@ services:
     networks:
       - cloud-network
 
-  gateway:
+#  gateway:
 #    build: ./spring_cloud/gateway
 #    ports:
 #      - "8080:8080"
