@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  eureka-server:
-    build: ./spring_cloud/eureka-server
-    ports:
-      - "8761:8761"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - cloud-network
+#  eureka-server:
+#    build: ./spring_cloud/eureka-server
+#    ports:
+#      - "8761:8761"
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8761"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#    networks:
+#      - cloud-network
 
   config-server:
     build: ./spring_cloud/config-server
@@ -21,46 +21,46 @@ services:
       - cloud-network
 
   gateway:
-    build: ./spring_cloud/gateway
-    ports:
-      - "8080:8080"
-    networks:
-      - cloud-network
-
-  kafka:
-    image: bitnami/kafka:latest
-    environment:
-      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      ALLOW_PLAINTEXT_LISTENER: "yes"
-    ports:
-      - "9092:9092"
-    depends_on:
-      - zookeeper
-    networks:
-      - cloud-network
-
-  zookeeper:
-    image: bitnami/zookeeper:latest
-    ports:
-      - "2181:2181"
-    networks:
-      - cloud-network
-
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: cloudarchitecturedb
-    ports:
-      - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    networks:
-      - cloud-network
+#    build: ./spring_cloud/gateway
+#    ports:
+#      - "8080:8080"
+#    networks:
+#      - cloud-network
+#
+#  kafka:
+#    image: bitnami/kafka:latest
+#    environment:
+#      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+#      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
+#      ALLOW_PLAINTEXT_LISTENER: "yes"
+#    ports:
+#      - "9092:9092"
+#    depends_on:
+#      - zookeeper
+#    networks:
+#      - cloud-network
+#
+#  zookeeper:
+#    image: bitnami/zookeeper:latest
+#    ports:
+#      - "2181:2181"
+#    networks:
+#      - cloud-network
+#
+#  mysql:
+#    image: mysql:8.0
+#    environment:
+#      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+#      MYSQL_DATABASE: cloudarchitecturedb
+#    ports:
+#      - "3306:3306"
+#    healthcheck:
+#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#    networks:
+#      - cloud-network
 
 networks:
   cloud-network:
