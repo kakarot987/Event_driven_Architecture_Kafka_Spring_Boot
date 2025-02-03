@@ -37,7 +37,7 @@ jobs:
 
       # Shut down the containers after tests
       - name: Shut down Docker Compose
-        run: docker-compose -f docker-compose down
+        run: docker-compose -f docker-compose.yml down
 
 #  deploy:
 #    runs-on: ubuntu-latest
