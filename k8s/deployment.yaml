@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: config-repo
-          image: ghcr.io/your-org/config-repo:latest
+          image: ghcr.io/kakarot987/config-repo:latest
           ports:
             - containerPort: 8080
           env:
