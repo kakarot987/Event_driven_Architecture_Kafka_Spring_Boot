@@ -30,7 +30,7 @@ jobs:
       # Build and start the Docker Compose environment
       - name: Build and Start Docker Compose
         run: |
-          docker-compose -f ../docker-compose.yml up -d --build
+          docker-compose -f docker-compose.yml up -d --build
 
       # Run Gradle build inside Docker container
       - name: Build and Test with Gradle
