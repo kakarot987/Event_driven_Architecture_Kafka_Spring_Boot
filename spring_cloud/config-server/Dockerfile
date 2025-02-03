@@ -1,6 +1,6 @@
 FROM openjdk:23 as builder
 WORKDIR extracted
-ADD build/libs/config-server-0.0.1-SNAPSHOT.jar app.jar
+ADD ./build/libs/config-server-0.0.1-SNAPSHOT.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
 
 FROM openjdk:23
