@@ -17,6 +17,8 @@ services:
     build: ./spring_cloud/config-server
     ports:
       - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
     networks:
       - cloud-network
 
