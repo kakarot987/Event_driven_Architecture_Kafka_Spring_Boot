@@ -1,16 +1,12 @@
 FROM openjdk:23 as builder
-WORKDIR extracted
-ADD ./build/libs/config-server-0.0.1-SNAPSHOT.jar app.jar
-RUN java -Djarmode=layertools -jar app.jar extract
+ARG JAR_FILE=./build/libs/config-server-0.0.1-SNAPSHOT.jar
+COPY ${JAR_FILE} app.jar
+#WORKDIR /workspace
+#ADD ./build/libs/config-server-0.0.1-SNAPSHOT.jar app.jar
+#RUN java -Djarmode=layertools -jar app.jar extract || (echo "Layertools extraction failed"; ls -la)
 
-FROM openjdk:23
-
-WORKDIR application
-COPY --from=builder extracted/dependencies/ ./
-COPY --from=builder extracted/spring-boot-loader/ ./
-COPY --from=builder extracted/snapshot-dependencies/ ./
-COPY --from=builder extracted/application/ ./
-
-EXPOSE 8888
-
-ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
+#FROM openjdk:23
+#WORKDIR /app
+# Temporarily avoid copying for debugging
+EXPOSE 80
+ENTRYPOINT ["java", "-jar", "/app.jar"]
