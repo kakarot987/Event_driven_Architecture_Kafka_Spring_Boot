@@ -9,8 +9,8 @@ terraform {
 
 provider "docker" {}
 
-resource "docker_network" "local_network" {
-  name = "local_network"
+resource "docker_network" "cloud_network" {
+  name = "cloud_network"
 }
 
 resource "docker_image" "java_image" {
@@ -22,7 +22,7 @@ resource "docker_container" "config_server" {
   name  = "config-server"
 
   networks_advanced {
-    name = docker_network.local_network.name
+    name = docker_network.cloud_network.name
   }
 
   ports {
@@ -31,7 +31,7 @@ resource "docker_container" "config_server" {
   }
 
   env = [
-    "SPRING_PROFILES_ACTIVE=local"
+    "SPRING_PROFILES_ACTIVE=docker"
   ]
 }
 
