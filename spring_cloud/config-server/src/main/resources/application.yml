@@ -9,10 +9,14 @@ spring:
 
 management.endpoint.health.show-details: "ALWAYS"
 management.endpoints.web.exposure.include: "*"
+management.endpoints.prometheus.enables: "true"
 
 logging:
   level:
     root: info
+  file:
+    path: /var/log/config-repo
+
 ---
 spring:
   config:
