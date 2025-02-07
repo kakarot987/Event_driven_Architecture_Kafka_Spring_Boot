@@ -1,6 +1,6 @@
 //include ':api'
 //include ':util'
-//include ':spring_cloud:eureka-server'
+include ':spring_cloud:eureka-server'
 include ':spring_cloud:config-server'
 //include ':spring_cloud:gateway'
 //include ':spring_cloud:authentication-server'
