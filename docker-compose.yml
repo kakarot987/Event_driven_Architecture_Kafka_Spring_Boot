@@ -29,13 +29,13 @@ services:
     ports:
       - "9200:9200"
 
-  logstash:
-    image: docker.elastic.co/logstash/logstash:7.17.10
-    container_name: logstash
-    volumes:
-      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-    ports:
-      - "5044:5044"
+#  logstash:
+#    image: docker.elastic.co/logstash/logstash:7.17.10
+#    container_name: logstash
+#    volumes:
+#      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+#    ports:
+#      - "5044:5044"
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.10
