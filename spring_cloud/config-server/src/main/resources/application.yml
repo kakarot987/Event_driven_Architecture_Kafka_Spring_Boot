@@ -5,41 +5,29 @@ spring:
   application:
     name: config-server
   profiles:
-    active: docker
+    active: vault          # <-- was "docker", now points at Vault backend
 
-management.endpoint.health.show-details: "ALWAYS"
-management.endpoints.web.exposure.include: "*"
-management.endpoints.prometheus.enables: "true"
-
-logging:
-  level:
-    root: info
-  file:
-    path: /var/log/config-repo
+management:
+  endpoint:
+    health:
+      show-details: "ALWAYS"
+  endpoints:
+    web:
+      exposure:
+        include: "*"
 
 ---
 spring:
   config:
     activate:
-      on-profile: native
+      on-profile: vault    # <-- renamed from "native"
   cloud:
     config:
       server:
-        git:
-          uri: https://github.com/kakarot987/config-repo.git
-          username: kakarot987
-          password: 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
-          skipSslValidation: true
----
-spring:
-  config:
-    activate:
-      on-profile: docker
-  cloud:
-    config:
-      server:
-        git:
-          uri: https://github.com/kakarot987/config-repo.git
-          username: kakarot987
-          password: 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
-          skipSslValidation: true
+        vault:
+          host: vault       # <-- container service name, NOT 127.0.0.1 (see below)
+          port: 8200
+          scheme: http
+          kv-version: 2
+          authentication: TOKEN
+          token: ${VAULT_TOKEN}

@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.4.2'
+	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -15,12 +15,11 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
 }
 
 ext {
-	set('springCloudVersion', "2024.0.0")
+	// Aligned to Spring Cloud Oakwood release train for Boot 4.x compatibility
+	set('springCloudVersion', "2025.1.2")
 }
 
 configurations {
@@ -30,10 +29,18 @@ configurations {
 }
 
 dependencies {
+	// Core Web Framework
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	// Eureka Discovery Server (Version managed by Spring Cloud BOM)
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+	// Observability & Monitoring
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
-	implementation 'org.springframework.boot:spring-boot-actuator'
+
+	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

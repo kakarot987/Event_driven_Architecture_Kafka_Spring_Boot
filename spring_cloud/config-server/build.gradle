@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.4.2'
+	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -15,12 +15,11 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
 }
 
 ext {
-	set('springCloudVersion', "2024.0.0")
+	// Upgraded to Oakwood release train to ensure full compatibility with Boot 4.1.x
+	set('springCloudVersion', "2025.1.2")
 }
 
 configurations {
@@ -31,9 +30,17 @@ configurations {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+// Spring Cloud Config Server (Vault backend support included)
 	implementation 'org.springframework.cloud:spring-cloud-config-server'
+
+// Vault client library — needed on classpath for config-server's Vault backend,
+// but WITHOUT the auto-configuration starter that conflicts with it
+	implementation 'org.springframework.vault:spring-vault-core'
+
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
-	implementation 'org.springframework.boot:spring-boot-actuator'
+
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

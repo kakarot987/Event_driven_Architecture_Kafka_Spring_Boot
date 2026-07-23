@@ -1,14 +1,13 @@
-version: '3.8'
-
 services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     volumes:
       - "./prometheus/prometheus.yml:/etc/prometheus/prometheus/prometheus.yml"
-  #    - "- /var/run/docker.sock:/var/run/docker.sock"
     ports:
       - "9090:9090"
+    networks:
+      - cloud-network
 
   grafana:
     image: grafana/grafana:latest
@@ -20,95 +19,167 @@ services:
       - "grafana-data:/var/lib/grafana"
     ports:
       - "3000:3000"
+    networks:
+      - cloud-network
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
-    container_name: elasticsearch
+  vault:
+    image: hashicorp/vault:latest
+    ports:
+      - "8200:8200"
     environment:
-      - discovery.type=single-node
+      VAULT_DEV_ROOT_TOKEN_ID: "root"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "sh", "-c", "VAULT_ADDR=http://127.0.0.1:8200 vault status"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+    networks:
+      - cloud-network
+
+  vault-seed:
+    image: hashicorp/vault:latest
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    entrypoint: >
+      sh -c "
+      vault secrets enable -path=secret kv-v2 || true;
+      vault kv put secret/eureka-server EUREKA_USR=eureka_admin EUREKA_PWD=eureka_pass_local;
+      vault kv put secret/auth-service DB_USERNAME=auth_user DB_PASSWORD=auth_pass_local JWT_SECRET=dev-only-secret EUREKA_USR=eureka_admin EUREKA_PWD=eureka_pass_local;
+      vault kv put secret/order-service DB_USERNAME=order_user DB_PASSWORD=order_pass_local PAYMENT_API_KEY=dev-fake-key EUREKA_USR=eureka_admin EUREKA_PWD=eureka_pass_local;
+      echo 'Vault seeded.'
+      "
+    networks:
+      - cloud-network
+
+  eureka-server:
+    build: ./spring_cloud/eureka-server
     ports:
-      - "9200:9200"
-
-#  logstash:
-#    image: docker.elastic.co/logstash/logstash:7.17.10
-#    container_name: logstash
-#    volumes:
-#      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
-#    ports:
-#      - "5044:5044"
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.17.10
-    container_name: kibana
-    ports:
-      - "5601:5601"
-
-#  eureka-server:
-#    build: ./spring_cloud/eureka-server
-#    ports:
-#      - "8761:8761"
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:8761"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#    networks:
-#      - cloud-network
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s -u ${EUREKA_USR}:${EUREKA_PWD} http://localhost:8761/actuator/health | grep -q 'UP' || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cloud-network
 
   config-server:
     build: ./spring_cloud/config-server
     ports:
       - "8888:8888"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      SPRING_PROFILES_ACTIVE: vault
+      VAULT_TOKEN: "root"
+      # Disables vault health indicator from bringing down the entire actuator status
+      MANAGEMENT_HEALTH_CONFIG_ENABLED: "false"
+    depends_on:
+      vault-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:8888/actuator/health | grep -q 'UP' || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       - cloud-network
 
-#  gateway:
-#    build: ./spring_cloud/gateway
-#    ports:
-#      - "8080:8080"
-#    networks:
-#      - cloud-network
-#
-  kafka:
-    image: bitnami/kafka:latest
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
     environment:
-      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CFG_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      - discovery.type=single-node
+      - xpack.security.enabled=false   # dev convenience — 7.x has security off by default already, but explicit is safer
+    ports:
+      - "9200:9200"
+    networks:
+      - cloud-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.10
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "5044:5044"
+    depends_on:
+      - elasticsearch
+    networks:
+      - cloud-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.10
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - cloud-network
+
+  gateway:
+    build: ./spring_cloud/gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - cloud-network
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     ports:
       - "9092:9092"
-    depends_on:
-      - zookeeper
     networks:
       - cloud-network
 
-  zookeeper:
-    image: bitnami/zookeeper:latest
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: cloudarchitecturedb
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d   # runs .sql files on first startup
     ports:
-      - "2181:2181"
+      - "3306:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - cloud-network
-
-#  mysql:
-#    image: mysql:8.0
-#    environment:
-#      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-#      MYSQL_DATABASE: cloudarchitecturedb
-#    ports:
-#      - "3306:3306"
-#    healthcheck:
-#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-#      interval: 30s
-#      timeout: 10s
-#      retries: 3
-#    networks:
-#      - cloud-network
 
 
 networks:
   cloud-network:
     driver: bridge
+
 volumes:
   grafana-data:

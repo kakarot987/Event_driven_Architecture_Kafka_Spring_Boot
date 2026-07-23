@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.4.2'
+	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -15,12 +15,11 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
 }
 
 ext {
-	set('springCloudVersion', "2024.0.0")
+	// Oakwood release train specifically aligned with Spring Boot 4.0/4.1
+	set('springCloudVersion', "2025.1.2")
 }
 
 configurations {
@@ -29,38 +28,40 @@ configurations {
 	}
 }
 
-
 dependencies {
 	implementation project(':api')
 	implementation project(':util')
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	// https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-config
-	implementation 'org.springframework.cloud:spring-cloud-starter-config:4.1.0'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'mysql:mysql-connector-java:8.0.32'
-	implementation 'io.jsonwebtoken:jjwt-api:0.11.1'
-	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.1'
-	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.1'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	// https://mvnrepository.com/artifact/javax.servlet/servlet-api
-	compileOnly 'javax.servlet:servlet-api:3.0-alpha-1'
-	implementation 'org.springframework.boot:spring-boot-configuration-processor:2.6.4'
-// https://mvnrepository.com/artifact/org.springframework.security/spring-security-config
-	implementation 'org.springframework.security:spring-security-config:6.2.0'
 
+	// Core Web & Security 7 (Managed by Boot 4.1)
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-// https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-circuitbreaker-reactor-resilience4j
-	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j:3.1.0'
+	annotationProcessor 'org.springframework.boot:spring-boot-starter-configuration-processor'
+
+	// Spring Cloud Starter Modules (Managed by Spring Cloud BOM)
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	// Database
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-// https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-netflix-eureka-client
-	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client:4.0.3'
-	compileOnly 'org.projectlombok:lombok:1.18.20'
-	annotationProcessor 'org.projectlombok:lombok:1.18.20'
-// https://mvnrepository.com/artifact/org.springdoc/springdoc-openapi-ui
-	implementation 'org.springdoc:springdoc-openapi-ui:1.7.0'
-	implementation 'org.springframework.boot:spring-boot-starter-mail:1.2.0.RELEASE'
-// https://mvnrepository.com/artifact/com.google.guava/guava
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// Mail
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+	// JWT Utilities (0.12.x supports Jakarta namespaces required by Boot 4)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+
+	// Utilities & Modern OpenDoc
 	implementation 'com.google.guava:guava:33.4.0-jre'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
+	// Lombok
+	compileOnly 'org.projectlombok:lombok:1.19.0'
+	annotationProcessor 'org.projectlombok:lombok:1.19.0'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

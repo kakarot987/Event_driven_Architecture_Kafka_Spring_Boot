@@ -1,4 +1,4 @@
-FROM openjdk:12.0.2
+FROM eclipse-temurin:23 AS builder
 
 EXPOSE 9002
 
