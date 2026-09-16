@@ -18,50 +18,37 @@ repositories {
 }
 
 ext {
-	// Oakwood release train specifically aligned with Spring Boot 4.0/4.1
 	set('springCloudVersion', "2025.1.2")
-}
-
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
 }
 
 dependencies {
 	implementation project(':api')
 	implementation project(':util')
 
-	// Core Web & Security 7 (Managed by Boot 4.1)
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
-	annotationProcessor 'org.springframework.boot:spring-boot-starter-configuration-processor'
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-	// Spring Cloud Starter Modules (Managed by Spring Cloud BOM)
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 
-	// Database
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
-	// Mail
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 
-	// JWT Utilities (0.12.x supports Jakarta namespaces required by Boot 4)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
 
-	// Utilities & Modern OpenDoc
 	implementation 'com.google.guava:guava:33.4.0-jre'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
 
 	// Lombok
-	compileOnly 'org.projectlombok:lombok:1.19.0'
-	annotationProcessor 'org.projectlombok:lombok:1.19.0'
+	compileOnly 'org.projectlombok:lombok:1.18.36'
+	annotationProcessor 'org.projectlombok:lombok:1.18.36'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
@@ -70,12 +57,4 @@ dependencyManagement {
 	imports {
 		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
 	}
-}
-
-tasks.named('bootBuildImage') {
-	builder = 'paketobuildpacks/builder-jammy-base:latest'
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
 }

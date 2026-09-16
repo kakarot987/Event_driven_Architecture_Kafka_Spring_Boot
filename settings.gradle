@@ -1,8 +1,16 @@
-//include ':api'
-//include ':util'
-include ':spring_cloud:eureka-server'
+rootProject.name = 'Event_driven_Architecture_Kafka_Spring_Boot'
+
+include ':api'
+include ':util'
+include ':common-events'
+
 include ':spring_cloud:config-server'
+include ':spring_cloud:eureka-server'
 include ':spring_cloud:gateway'
-//include ':spring_cloud:authentication-server'
-/*include ':microservices:admin-panel' */
-//include ':microservices:authentication-authorization'
+
+include ':microservices:authentication-authorization'
+include ':microservices:order-service'
+include ':microservices:payment-service'
+include ':microservices:inventory-service'
+include ':microservices:shipping-service'
+include ':microservices:notification-service'

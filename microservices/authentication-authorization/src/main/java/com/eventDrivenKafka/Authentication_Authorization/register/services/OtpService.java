@@ -1,34 +1,41 @@
 package com.eventDrivenKafka.Authentication_Authorization.register.services;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.eventDrivenKafka.Authentication_Authorization.register.util.OtpGenerator;
 
 @Service
 public class OtpService {
-	
-    @Autowired
-    private OtpGenerator otpGenerator;
-    
+	private final OtpGenerator otpGenerator;
     private LoadingCache<String, String> mobileOtpCache;
     private LoadingCache<String, String> otpMobileCache;
     
     private static final Integer EXPIRE_MINS = 5;
 
-    public OtpService() {
+    public OtpService(OtpGenerator otpGenerator) {
+		this.otpGenerator = otpGenerator;
 		
-	  otpMobileCache = CacheBuilder.newBuilder().expireAfterWrite(EXPIRE_MINS,
-		  TimeUnit.MINUTES).build(new CacheLoader<String,String>(){
-		  
-		  @Override public String load(String key) throws Exception{ return
-		  "notvarified"; } });
+		mobileOtpCache = CacheBuilder.newBuilder().expireAfterWrite(EXPIRE_MINS, TimeUnit.MINUTES)
+				.build(new CacheLoader<String, String>(){
+					@Override 
+					public String load(String key) throws Exception { 
+						return "notverified"; 
+					}
+				});
     	
+		otpMobileCache = CacheBuilder.newBuilder().expireAfterWrite(EXPIRE_MINS, TimeUnit.MINUTES)
+				.build(new CacheLoader<String, String>(){
+					@Override 
+					public String load(String key) throws Exception { 
+						return "notverified"; 
+					}
+				});
     }
     
     public void putGeneratedOtpMobile(String mobile, String otp) {
@@ -39,7 +46,7 @@ public class OtpService {
     	return mobileOtpCache.get(mobile);
     }
     
-    public Boolean varifiedOrNotMobile(String key) {
+    public Boolean verifiedOrNotMobile(String key) {
     	try {
     		if(otpMobileCache.get(key).equals("Verified")){
     			return true;
@@ -48,9 +55,8 @@ public class OtpService {
     			return false;
     		}
     	}catch(ExecutionException e) {
-    		
+    		return false;
     	}
-    	return false;
     }
     
     public void putOtpMobileVerifyCache(String key) {

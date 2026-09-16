@@ -1,6 +1,7 @@
 package com.eventDrivenKafka.Authentication_Authorization.register.util;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.eventDrivenKafka.Authentication_Authorization.register.services.UserDetailsImpl;
 
+import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
@@ -22,21 +24,35 @@ public class JwtUtils {
 	@Value("${jwt.jwtExpirationMs}")
 	private int jwtExpirationMs;
 
-	public String generateJwtToken(Authentication authentication) {
+	private SecretKey getSigningKey() {
+		return Keys.hmacShaKeyFor(secret.getBytes());
+	}
 
+	public String generateJwtToken(Authentication authentication) {
 		UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
-		return Jwts.builder().setSubject((userPrincipal.getUsername())).setIssuedAt(new Date())
-				.setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-				.signWith(SignatureAlgorithm.HS512, secret).compact();
+		return Jwts.builder()
+				.subject(userPrincipal.getUsername())
+				.issuedAt(new Date())
+				.expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+				.signWith(getSigningKey(), Jwts.SIG.HS512)
+				.compact();
 	}
 
 	public String getUserNameFromJwtToken(String token) {
-		return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody().getSubject();
+		return Jwts.parser()
+				.verifyWith(getSigningKey())
+				.build()
+				.parseClaimsJws(token)
+				.getBody()
+				.getSubject();
 	}
 
 	public boolean validateJwtToken(String authToken) {
 		try {
-			Jwts.parser().setSigningKey(secret).parseClaimsJws(authToken);
+			Jwts.parser()
+					.verifyWith(getSigningKey())
+					.build()
+					.parseClaimsJws(authToken);
 			return true;
 		} catch (SignatureException e) {
 			logger.error("Invalid JWT signature: {}", e.getMessage());

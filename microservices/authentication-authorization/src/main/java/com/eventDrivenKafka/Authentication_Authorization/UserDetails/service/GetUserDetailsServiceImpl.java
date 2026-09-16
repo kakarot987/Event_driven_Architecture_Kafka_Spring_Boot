@@ -9,9 +9,8 @@ import com.eventDrivenKafka.Authentication_Authorization.dto.userDetails.CreateP
 import com.eventDrivenKafka.Authentication_Authorization.dto.userDetails.GetUserDetails;
 import com.eventDrivenKafka.Authentication_Authorization.dto.userDetails.UserDetailsResponse;
 import com.eventDrivenKafka.Authentication_Authorization.register.persistence.User;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.eventDrivenKafka.Authentication_Authorization.UserDetails.persistence.UserDetails;
@@ -21,24 +20,25 @@ import com.eventDrivenKafka.Authentication_Authorization.register.persistence.Us
 
 @RestController
 public class GetUserDetailsServiceImpl implements GetUserDetails {
+	private static final Logger logger = LoggerFactory.getLogger(GetUserDetailsServiceImpl.class);
 
-	@Autowired
-	private UserDetailsRepository repo;
-	
-	@Autowired
-	private GetUserRoles getuserRoles;
-	
-	@Autowired
-	private CreateProfileService createProfileService;
-	
-	@Autowired
-	private UserRepository userRepository;
+	private final UserDetailsRepository repo;
+	private final GetUserRoles getUserRoles;
+	private final CreateProfileService createProfileService;
+	private final UserRepository userRepository;
+
+	public GetUserDetailsServiceImpl(UserDetailsRepository repo, GetUserRoles getUserRoles,
+									 CreateProfileService createProfileService, UserRepository userRepository) {
+		this.repo = repo;
+		this.getUserRoles = getUserRoles;
+		this.createProfileService = createProfileService;
+		this.userRepository = userRepository;
+	}
 
 	List<UserDetails> userDetails;
-	List<UserDetailsResponse> responselist = new ArrayList<>();
-	private UserDetailsResponse user_response;
+	List<UserDetailsResponse> responseList = new ArrayList<>();
+	private UserDetailsResponse userResponse;
 	
-//	@PreAuthorize("hasRole('USER')")
 	@Override
 	public Object getUser(Long userId, String accessToken) throws Exception {
 		Optional<User> user = userRepository.findByUserId(userId);
@@ -47,30 +47,24 @@ public class GetUserDetailsServiceImpl implements GetUserDetails {
 		}
 		String role;
 		try {
-			role = getuserRoles.getRoleFromCache(userId);
-			System.out.print("--------------"+role);
+			role = getUserRoles.getRoleFromCache(userId);
+			logger.info("User role retrieved: {}", role);
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			logger.error("Error retrieving user role from cache", e);
 		}
-		// TODO Auto-generated method stub
-		List<Object> responseobj = new ArrayList<>();
+		List<Object> responseObj = new ArrayList<>();
 		userDetails = repo.getDetails(userId);
-		System.out.println("userDetails");
-		System.out.println(userDetails);
-		responseobj.add(userDetails);
-		return responseobj;
-
+		logger.info("Retrieved user details for userId: {}", userId);
+		responseObj.add(userDetails);
+		return responseObj;
 	}
 
 	@Override
 	public UserDetailsResponse createProfile(CreateProfileRequest createProfileRequest, Long userId, String accessToken) throws Exception {
-		// TODO Auto-generated method stub
 		Optional<User> user = userRepository.findByUserId(userId);
 		if(!accessToken.equals(user.get().getAuthToken())) {
 			throw new Exception("Unauthorized Access");
 		}
-		
 		return createProfileService.createProfile(userId, createProfileRequest);
 	}
 

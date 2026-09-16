@@ -1,0 +1,28 @@
+plugins {
+	id 'java-library'
+}
+
+group = 'com.eventDrivenKafka'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(23)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	api 'com.fasterxml.jackson.core:jackson-databind:2.15.2' // JSON serialization
+	compileOnly 'org.projectlombok:lombok:1.18.36'
+	annotationProcessor 'org.projectlombok:lombok:1.18.36'
+	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.2'
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.2'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
