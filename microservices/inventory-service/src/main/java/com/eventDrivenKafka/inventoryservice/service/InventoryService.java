@@ -1,6 +1,7 @@
 package com.eventDrivenKafka.inventoryservice.service;
 
-import com.eventDrivenKafka.inventoryservice.dto.InventoryReservedEventDto;
+import com.eventDrivenKafka.commonevents.InventoryReservedEvent;
+import com.eventDrivenKafka.commonevents.OrderPlacedEvent;
 import com.eventDrivenKafka.inventoryservice.persistence.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,13 +31,20 @@ public class InventoryService {
     }
 
     @Transactional
-    public InventoryReservedEventDto reserveInventory(String eventId, String orderId,
-                                                      List<InventoryReservedEventDto.ReservedItem> requestedItems,
+    public InventoryReservedEvent reserveInventory(String eventId, String orderId,
+                                                      List<OrderPlacedEvent.OrderItem> requestedItems,
                                                       int partition, long offset) {
         // Idempotency guard
         if (isEventAlreadyProcessed(eventId)) {
             log.warn("Event already processed: {}", eventId);
-            return InventoryReservedEventDto.failed(orderId, "AlreadyProcessed");
+            return InventoryReservedEvent.builder()
+                    .eventId(java.util.UUID.randomUUID().toString())
+                    .orderId(orderId)
+                    .status("FAILED")
+                    .failureReason("AlreadyProcessed")
+                    .timestamp(java.time.LocalDateTime.now())
+                    .eventType("InventoryReservedEvent")
+                    .build();
         }
 
         // Check availability
@@ -61,7 +69,14 @@ public class InventoryService {
             String reason = "Insufficient stock for: " + String.join(",", insufficient);
             log.info("Reservation failed for order {}: {}", orderId, reason);
             markEventProcessed(eventId, orderId, "PaymentProcessedEvent", "payment-events", partition, offset);
-            return InventoryReservedEventDto.failed(orderId, reason);
+            return InventoryReservedEvent.builder()
+                    .eventId(java.util.UUID.randomUUID().toString())
+                    .orderId(orderId)
+                    .status("FAILED")
+                    .failureReason(reason)
+                    .timestamp(java.time.LocalDateTime.now())
+                    .eventType("InventoryReservedEvent")
+                    .build();
         }
 
         // reserve by decrementing stock and saving reservation rows
@@ -86,11 +101,18 @@ public class InventoryService {
 
         // build success event DTO
         var items = reservations.stream()
-                .map(r -> new InventoryReservedEventDto.ReservedItem(r.getProductId(), r.getQuantity()))
+                .map(r -> new OrderPlacedEvent.OrderItem(r.getProductId(), r.getQuantity(), null))
                 .collect(Collectors.toList());
 
         log.info("Inventory reserved for order {}: items={}", orderId, items.size());
-        return InventoryReservedEventDto.success(orderId, items);
+        return InventoryReservedEvent.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .orderId(orderId)
+                .status("RESERVED")
+                .items(items)
+                .timestamp(java.time.LocalDateTime.now())
+                .eventType("InventoryReservedEvent")
+                .build();
     }
 
     private void markEventProcessed(String eventId, String aggregateId, String eventType,

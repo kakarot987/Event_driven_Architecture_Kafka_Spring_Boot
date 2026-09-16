@@ -15,7 +15,7 @@ public class OrderPlacedEvent {
     private LocalDateTime timestamp;
     private String eventType;
 
-    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
     public static class OrderItem {
         private String productId;
         private Integer quantity;

@@ -1,6 +1,7 @@
 package com.eventDrivenKafka.inventoryservice.event;
 
-import com.eventDrivenKafka.inventoryservice.dto.InventoryReservedEventDto;
+import com.eventDrivenKafka.commonevents.InventoryReservedEvent;
+import com.eventDrivenKafka.commonevents.OrderPlacedEvent;
 import com.eventDrivenKafka.commonevents.PaymentProcessedEvent;
 import com.eventDrivenKafka.inventoryservice.service.InventoryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,27 +45,27 @@ public class PaymentEventConsumer {
                 return;
             }
 
-            // Convert items from payment event into InventoryReservedEventDto.ReservedItem
-            var requestedItems = java.util.Optional.ofNullable(event.getItems())
-                    .map(list -> {
-                        var mapped = new java.util.ArrayList<InventoryReservedEventDto.ReservedItem>();
-                        for (var it : list) {
-                            mapped.add(new InventoryReservedEventDto.ReservedItem(it.getProductId(), it.getQuantity()));
-                        }
-                        return mapped;
-                    })
-                    .orElse(new ArrayList<>());
+            // Items are already modeled as OrderPlacedEvent.OrderItem in the canonical event
+            var requestedItems = java.util.Optional.ofNullable(event.getItems()).orElse(new java.util.ArrayList<OrderPlacedEvent.OrderItem>());
 
             // If no items present, fail early
             if (requestedItems.isEmpty()) {
                 String reason = "No items found in payment event - cannot reserve";
                 log.warn(reason + " for order {}", event.getOrderId());
-                inventoryEventPublisher.publishInventoryReservedEvent(InventoryReservedEventDto.failed(event.getOrderId(), reason), event.getOrderId());
+                inventoryEventPublisher.publishInventoryReservedEvent(
+                        com.eventDrivenKafka.commonevents.InventoryReservedEvent.builder()
+                                .eventId(java.util.UUID.randomUUID().toString())
+                                .orderId(event.getOrderId())
+                                .status("FAILED")
+                                .failureReason(reason)
+                                .timestamp(java.time.LocalDateTime.now())
+                                .eventType("InventoryReservedEvent")
+                                .build(), event.getOrderId());
                 return;
             }
 
             // Reserve inventory (idempotent)
-            InventoryReservedEventDto reservedEvent = inventoryService.reserveInventory(
+            InventoryReservedEvent reservedEvent = inventoryService.reserveInventory(
                     event.getEventId(), event.getOrderId(), requestedItems, partition, offset);
 
             inventoryEventPublisher.publishInventoryReservedEvent(reservedEvent, event.getOrderId());

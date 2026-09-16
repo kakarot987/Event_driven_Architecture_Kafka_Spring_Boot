@@ -1,6 +1,6 @@
 package com.eventDrivenKafka.inventoryservice.event;
 
-import com.eventDrivenKafka.inventoryservice.dto.InventoryReservedEventDto;
+import com.eventDrivenKafka.commonevents.InventoryReservedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -21,7 +21,7 @@ public class InventoryEventPublisher {
         this.objectMapper = objectMapper;
     }
 
-    public void publishInventoryReservedEvent(InventoryReservedEventDto event, String orderId) {
+    public void publishInventoryReservedEvent(InventoryReservedEvent event, String orderId) {
         try {
             String payload = objectMapper.writeValueAsString(event);
             Message<String> message = MessageBuilder

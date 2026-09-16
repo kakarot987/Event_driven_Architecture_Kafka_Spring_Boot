@@ -5,7 +5,7 @@ import com.eventDrivenKafka.paymentservice.persistence.Payment;
 import com.eventDrivenKafka.paymentservice.persistence.Payment.PaymentStatus;
 import com.eventDrivenKafka.paymentservice.persistence.PaymentRepository;
 import com.eventDrivenKafka.paymentservice.dto.PaymentResponse;
-import com.eventDrivenKafka.paymentservice.dto.OrderPlacedEventDto;
+// removed unused local DTO import; using canonical events from common-events
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
