@@ -1,17 +1,32 @@
-/* Multi-stage Dockerfile for building and running the Order Service */
+FROM eclipse-temurin:23-jdk AS builder
 
-# Builder stage: uses official Gradle image with JDK 17 to run the Gradle build
-FROM gradle:8.6-jdk17 AS builder
-WORKDIR /home/gradle/project
-COPY --chown=gradle:gradle . ./
-# Build the bootJar (skip tests to make image build faster during development)
-RUN gradle clean bootJar -x test --no-daemon
+WORKDIR /workspace
 
-# Runtime stage: small JRE image
-FROM eclipse-temurin:17-jre-jammy
+COPY gradle/ ./gradle/
+COPY settings.gradle gradlew gradlew.bat ./
+
+COPY common-events/build.gradle ./common-events/
+COPY util/build.gradle ./util/
+COPY microservices/order-service/build.gradle ./microservices/order-service/
+
+RUN chmod +x ./gradlew
+
+COPY . .
+
+RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
+    ./gradlew :microservices:order-service:bootJar \
+    -x test \
+    --no-daemon \
+    --stacktrace
+
+FROM eclipse-temurin:23-jre
+
 WORKDIR /app
-# Copy the boot jar from the builder stage
-COPY --from=builder /home/gradle/project/build/libs/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/app.jar"]
 
+COPY --from=builder \
+    /workspace/microservices/order-service/build/libs/*.jar \
+    app.jar
+
+EXPOSE 8081
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

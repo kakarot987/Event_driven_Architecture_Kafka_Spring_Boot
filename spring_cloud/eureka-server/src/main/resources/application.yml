@@ -23,7 +23,7 @@ spring:
       password: ${EUREKA_PWD}
   cloud:
     config:
-      fail-fast: true
+      fail-fast: false
       retry:
         initial-interval: 3000
         multiplier: 1.3
@@ -42,11 +42,11 @@ spring:
   config:
     activate:
       on-profile: docker
-    import: "configserver:http://config-server:8888"
+    import: "optional:configserver:http://config-server:8888"
 
 ---
 spring:
   config:
     activate:
       on-profile: local
-    import: "configserver:http://localhost:8888"
+    import: "optional:configserver:http://localhost:8888"

@@ -3,10 +3,10 @@ app.config-server: localhost
 spring:
   application.name: gateway
   config:
-    import: "configserver:http://${CONFIG_SERVER_USR}:${CONFIG_SERVER_PWD}@config-server:8888"
+    import: "optional:configserver:http://${CONFIG_SERVER_USR}:${CONFIG_SERVER_PWD}@config-server:8888"
   cloud:
     config:
-      failFast: true
+      failFast: false
       retry:
         initialInterval: 3000
         multiplier: 1.3

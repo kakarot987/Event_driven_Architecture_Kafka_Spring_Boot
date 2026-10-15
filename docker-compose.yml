@@ -70,13 +70,19 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'yellow\\|green' || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(yellow|green)\"' || exit 1"
+        ]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 12
+      start_period: 60s
     networks:
       - cloud-network
 
@@ -125,31 +131,46 @@ services:
 
   # ============ Message Broker ============
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:4.3.1
     container_name: kafka
+
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
+
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
     ports:
       - "9092:9092"
+
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 | grep -q ApiVersion || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"
+        ]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   # ============ Spring Cloud Components ============
   config-server:
-    build: ./spring_cloud/config-server
+    build:
+      context: .
+      dockerfile: ./spring_cloud/config-server/Dockerfile
     container_name: config-server
     ports:
       - "8888:8888"
@@ -169,7 +190,9 @@ services:
       - cloud-network
 
   eureka-server:
-    build: ./spring_cloud/eureka-server
+    build:
+      context: .
+      dockerfile: ./spring_cloud/eureka-server/Dockerfile
     container_name: eureka-server
     ports:
       - "8761:8761"
@@ -189,180 +212,290 @@ services:
       - cloud-network
 
   gateway:
-    build: ./spring_cloud/gateway
+    build:
+      context: .
+      dockerfile: ./spring_cloud/gateway/Dockerfile
     container_name: gateway
+
     ports:
       - "8080:8080"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_APPLICATION_NAME: gateway
+      SERVER_PORT: 8080
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       config-server:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     networks:
       - cloud-network
 
   # ============ Microservices ============
   authentication-authorization:
-    build: ./microservices/authentication-authorization
+    build:
+      context: .
+      dockerfile: ./microservices/authentication-authorization/Dockerfile
     container_name: auth-service
+
     ports:
-      - "8001:8001"
+      - "8001:8080"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_APPLICATION_NAME: auth-service
+      SERVER_PORT: 8080
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
       SPRING_DATASOURCE_USERNAME: auth_user
       SPRING_DATASOURCE_PASSWORD: auth_pass_local
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      JWT_SECRET: dev-only-secret-change-in-prod
-      JWT_EXPIRATION_MS: 86400000
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8001/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   order-service:
-    build: ./microservices/order-service
+    build:
+      context: .
+      dockerfile: ./microservices/order-service/Dockerfile
     container_name: order-service
+
     ports:
-      - "8002:8002"
+      - "8002:8081"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
+      SPRING_APPLICATION_NAME: order-service
+      SERVER_PORT: 8081
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_db
       SPRING_DATASOURCE_USERNAME: order_user
       SPRING_DATASOURCE_PASSWORD: order_pass_local
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8002/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   payment-service:
-    build: ./microservices/payment-service
+    build:
+      context: .
+      dockerfile: ./microservices/payment-service/Dockerfile
     container_name: payment-service
+
     ports:
-      - "8003:8003"
+      - "8003:8082"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
+      SPRING_APPLICATION_NAME: payment-service
+      SERVER_PORT: 8082
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/payment_db
       SPRING_DATASOURCE_USERNAME: payment_user
       SPRING_DATASOURCE_PASSWORD: payment_pass_local
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8003/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   inventory-service:
-    build: ./microservices/inventory-service
+    build:
+      context: .
+      dockerfile: ./microservices/inventory-service/Dockerfile
     container_name: inventory-service
+
     ports:
-      - "8004:8004"
+      - "8004:8083"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
+      SPRING_APPLICATION_NAME: inventory-service
+      SERVER_PORT: 8083
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_db
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_pass_local
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8004/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8083/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   shipping-service:
-    build: ./microservices/shipping-service
+    build:
+      context: .
+      dockerfile: ./microservices/shipping-service/Dockerfile
     container_name: shipping-service
+
     ports:
-      - "8005:8005"
+      - "8005:8084"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
+      SPRING_APPLICATION_NAME: shipping-service
+      SERVER_PORT: 8084
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shipping_db
       SPRING_DATASOURCE_USERNAME: shipping_user
       SPRING_DATASOURCE_PASSWORD: shipping_pass_local
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8005/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8084/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 
   notification-service:
-    build: ./microservices/notification-service
+    build:
+      context: .
+      dockerfile: ./microservices/notification-service/Dockerfile
     container_name: notification-service
+
     ports:
-      - "8006:8006"
+      - "8006:8085"
+
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/cloudarchitecturedb
+      SPRING_APPLICATION_NAME: notification-service
+      SERVER_PORT: 8085
+
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/notification_db
       SPRING_DATASOURCE_USERNAME: notification_user
       SPRING_DATASOURCE_PASSWORD: notification_pass_local
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka_admin:eureka_pass_local@eureka-server:8761/eureka/
+
     depends_on:
       mysql:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      config-server:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8006/actuator/health | grep -q 'UP' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8085/actuator/health | grep -q 'UP' || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
+
     networks:
       - cloud-network
 

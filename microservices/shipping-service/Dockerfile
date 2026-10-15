@@ -1,17 +1,34 @@
-/* Multi-stage Dockerfile for building and running the Shipping Service */
+# Multi-stage Dockerfile for building and running the Shipping Service
 
-# Builder stage: uses official Gradle image with JDK 17 to run the Gradle build
-FROM gradle:8.6-jdk17 AS builder
-WORKDIR /home/gradle/project
-COPY --chown=gradle:gradle . ./
-# Build the bootJar (skip tests to make image build faster during development)
-RUN gradle clean bootJar -x test --no-daemon
+FROM eclipse-temurin:23-jdk AS builder
 
-# Runtime stage: small JRE image
-FROM eclipse-temurin:17-jre-jammy
+WORKDIR /workspace
+
+COPY gradle/ ./gradle/
+COPY settings.gradle gradlew gradlew.bat ./
+
+COPY common-events/build.gradle ./common-events/
+COPY util/build.gradle ./util/
+COPY microservices/shipping-service/build.gradle ./microservices/shipping-service/
+
+RUN chmod +x ./gradlew
+
+COPY . .
+
+RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
+    ./gradlew :microservices:shipping-service:bootJar \
+    -x test \
+    --no-daemon \
+    --stacktrace
+
+FROM eclipse-temurin:23-jre
+
 WORKDIR /app
-# Copy the boot jar from the builder stage
-COPY --from=builder /home/gradle/project/build/libs/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/app.jar"]
 
+COPY --from=builder \
+    /workspace/microservices/shipping-service/build/libs/*.jar \
+    app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

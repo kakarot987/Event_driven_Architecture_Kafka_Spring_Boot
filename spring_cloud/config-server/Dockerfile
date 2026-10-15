@@ -1,13 +1,33 @@
-FROM eclipse-temurin:23 as builder
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-ARG JAR_FILE=./build/libs/config-server-0.0.1-SNAPSHOT.jar
-COPY ${JAR_FILE} app.jar
-#WORKDIR /workspace
-#ADD ./build/libs/config-server-0.0.1-SNAPSHOT.jar app.jar
-#RUN java -Djarmode=layertools -jar app.jar extract || (echo "Layertools extraction failed"; ls -la)
+FROM eclipse-temurin:23-jdk AS builder
 
-#FROM openjdk:23
-#WORKDIR /app
-# Temporarily avoid copying for debugging
-EXPOSE 80
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+WORKDIR /workspace
+
+COPY gradle/ ./gradle/
+COPY settings.gradle gradlew gradlew.bat ./
+COPY spring_cloud/config-server/build.gradle ./spring_cloud/config-server/
+
+RUN chmod +x ./gradlew
+
+COPY . .
+
+RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
+    ./gradlew :spring_cloud:config-server:bootJar \
+    -x test \
+    --no-daemon \
+    --stacktrace
+
+FROM eclipse-temurin:23-jre
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder \
+    /workspace/spring_cloud/config-server/build/libs/*.jar \
+    app.jar
+
+EXPOSE 8888
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

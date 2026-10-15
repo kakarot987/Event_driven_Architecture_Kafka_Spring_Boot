@@ -1,6 +1,25 @@
 -- mysql-init/01-create-users.sql
-CREATE USER 'auth_user'@'%' IDENTIFIED BY 'auth_pass_local';
+CREATE DATABASE IF NOT EXISTS cloudarchitecturedb;
+CREATE DATABASE IF NOT EXISTS order_db;
+CREATE DATABASE IF NOT EXISTS payment_db;
+CREATE DATABASE IF NOT EXISTS inventory_db;
+CREATE DATABASE IF NOT EXISTS shipping_db;
+CREATE DATABASE IF NOT EXISTS notification_db;
+
+CREATE USER IF NOT EXISTS 'auth_user'@'%' IDENTIFIED BY 'auth_pass_local';
+CREATE USER IF NOT EXISTS 'order_user'@'%' IDENTIFIED BY 'order_pass_local';
+CREATE USER IF NOT EXISTS 'payment_user'@'%' IDENTIFIED BY 'payment_pass_local';
+CREATE USER IF NOT EXISTS 'inventory_user'@'%' IDENTIFIED BY 'inventory_pass_local';
+CREATE USER IF NOT EXISTS 'shipping_user'@'%' IDENTIFIED BY 'shipping_pass_local';
+CREATE USER IF NOT EXISTS 'notification_user'@'%' IDENTIFIED BY 'notification_pass_local';
+
 GRANT ALL PRIVILEGES ON cloudarchitecturedb.* TO 'auth_user'@'%';
+GRANT ALL PRIVILEGES ON order_db.* TO 'order_user'@'%';
+GRANT ALL PRIVILEGES ON payment_db.* TO 'payment_user'@'%';
+GRANT ALL PRIVILEGES ON inventory_db.* TO 'inventory_user'@'%';
+GRANT ALL PRIVILEGES ON shipping_db.* TO 'shipping_user'@'%';
+GRANT ALL PRIVILEGES ON notification_db.* TO 'notification_user'@'%';
+
 FLUSH PRIVILEGES;
 
 CREATE TABLE IF NOT EXISTS users (
