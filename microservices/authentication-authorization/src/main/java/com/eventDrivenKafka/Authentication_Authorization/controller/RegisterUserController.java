@@ -1,7 +1,8 @@
 package com.eventDrivenKafka.Authentication_Authorization.controller;
 
 import com.eventDrivenKafka.Authentication_Authorization.UserAggregate;
-import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.LoginRequest;
+import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.RequestPasswordResetRequest;
+import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.ResetPasswordRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.SignInRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.SignupRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.response.ApisResponse;
@@ -31,9 +32,11 @@ public interface RegisterUserController {
 	@PostMapping(value = "register-login/signin", produces = "application/json")
 	UserAggregate loginUser(@RequestBody @Parameter(description = "Signin Request") SignInRequest signInRequest);
 
-	@Operation(summary = "Reset Password", description = "Resets the password for a user.")
-	@PostMapping(value = "register-login/reset-password")
-	@ApiResponse(responseCode = "200", description = "Password reset successful",
-			content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApisResponse.class)))
-	ApisResponse resetPassword(@RequestBody @Parameter(description = "Login Request") LoginRequest loginRequest);
+	@Operation(summary = "Request password reset")
+	@PostMapping("register-login/request-password-reset")
+	ApisResponse requestPasswordReset(@RequestBody RequestPasswordResetRequest request);
+
+	@Operation(summary = "Redeem one-time password reset token")
+	@PostMapping("register-login/reset-password")
+	ApisResponse resetPassword(@RequestBody ResetPasswordRequest request);
 }

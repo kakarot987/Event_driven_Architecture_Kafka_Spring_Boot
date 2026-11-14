@@ -1,7 +1,8 @@
 package com.eventDrivenKafka.Authentication_Authorization.controller;
 
 import com.eventDrivenKafka.Authentication_Authorization.UserAggregate;
-import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.LoginRequest;
+import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.RequestPasswordResetRequest;
+import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.ResetPasswordRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.SignInRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.request.SignupRequest;
 import com.eventDrivenKafka.Authentication_Authorization.dto.registerLogin.payload.response.ApisResponse;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.eventDrivenKafka.Authentication_Authorization.UserDetails.persistence.UserDetails;
 import com.eventDrivenKafka.Authentication_Authorization.UserDetails.persistence.UserDetailsRepository;
 import com.eventDrivenKafka.Authentication_Authorization.register.services.AuthService;
+import com.eventDrivenKafka.Authentication_Authorization.register.services.PasswordResetService;
 import com.eventDrivenKafka.Authentication_Authorization.register.services.OtpService;
 import com.eventDrivenKafka.Authentication_Authorization.register.persistence.ERole;
 import com.eventDrivenKafka.Authentication_Authorization.register.persistence.Role;
@@ -41,19 +43,21 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 	private UserRepository repository;
 	private PasswordEncoder encoder;
 	private AuthService authService;
+	private final PasswordResetService passwordResetService;
 	private OtpService otpService;
 	private RoleRepository roleRepository;
 	private UserDetailsRepository repo;
 
 	@Autowired
 	public RegisterUserServiceImpl(UserRepository repository, AuthService authService, PasswordEncoder encoder,
-								   UserDetailsRepository repo, OtpService otpService, RoleRepository roleRepository) {
+								   UserDetailsRepository repo, OtpService otpService, RoleRepository roleRepository, PasswordResetService passwordResetService) {
 		this.repository = repository;
 		this.authService = authService;
 		this.encoder = encoder;
 		this.otpService = otpService;
 		this.roleRepository = roleRepository;
 		this.repo = repo;
+		this.passwordResetService = passwordResetService;
 	}
 
 	@Override
@@ -61,8 +65,7 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 	@ApiResponse(responseCode = "201", description = "User successfully registered")
 	public UserAggregate registerUser(@RequestBody SignupRequest signUpRequest) throws Exception {
 
-		System.out.println("---------" + signUpRequest.getPassword());
-		System.out.println("-------" + signUpRequest.getEmail());
+
 		Boolean verified = false;
 		Boolean verifiedMobile = false;
 
@@ -76,7 +79,7 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 
 		Set<Role> roles = new HashSet<>();
 		Role userRole = roleRepository.findByName(ERole.ROLE_USER);
-		System.out.println(userRole + "------------");
+
 		roles.add(userRole);
 		user.setRoles(roles);
 
@@ -111,10 +114,10 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 	public UserAggregate loginUser(@RequestBody SignInRequest signInRequest) {
 
 		if (signInRequest.getUsername() != null) {
-			System.out.println("here suername" + signInRequest.getUsername());
+
 			Optional<User> user = repository.findByUsername(signInRequest.getUsername());
 			JwtResponse jwtResponse = authService.updateUserAuth(user.get().getUserId(), signInRequest.getPassword());
-			System.out.println("---" + jwtResponse.getRoles().get(0));
+
 			UserAggregate userAggregate = new UserAggregate(user.get().getUserId(), jwtResponse.getAccessToken(),
 					user.get().getUsername(), jwtResponse.getRoles());
 			return userAggregate;
@@ -133,9 +136,9 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 			return userAggregate;
 		}
 		if (signInRequest.getPhoneNumber() == null) {
-			System.out.println("Here inside" + signInRequest.getEmail() +" "+signInRequest.getPassword());
+
 			Optional<User> user = repository.findByEmail(signInRequest.getEmail());
-			System.out.println("Here inside" + user.get().getEmail());
+
 			JwtResponse jwtResponse = authService.updateUserAuth(user.get().getUserId(), signInRequest.getPassword());
 			Set<Role> roleResponse = user.get().getRoles();
 			Set<String> roleString = new HashSet<>();
@@ -151,17 +154,14 @@ public class RegisterUserServiceImpl implements RegisterUserController {
 	}
 
 	@Override
-	@Operation(summary = "Reset Password", description = "Resets the password for a user.")
-	public ApisResponse resetPassword(@RequestBody LoginRequest loginRequest) {
-		if (repository.existsByEmail(loginRequest.getEmail())) {
-			if (authService.changePassword(loginRequest.getEmail(), loginRequest.getPassword())) {
-				return new ApisResponse(true, "Password changed successfully");
-			} else {
-				return new ApisResponse(false, "Unable to change password. Try again!");
-			}
-		} else {
-			return new ApisResponse(false, "User not found with this email id");
-		}
+	public ApisResponse requestPasswordReset(@RequestBody RequestPasswordResetRequest request) {
+		passwordResetService.requestReset(request.getEmail());
+		return new ApisResponse(true, "If the address is registered and verified, a reset message will be sent.");
 	}
 
+	@Override
+	public ApisResponse resetPassword(@RequestBody ResetPasswordRequest request) {
+		boolean changed = passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+		return new ApisResponse(changed, changed ? "Password changed successfully" : "Invalid or expired reset token");
+	}
 }
