@@ -16,7 +16,7 @@ spring:
   application:
     name: eureka-server
   profiles:
-    active: docker
+    active: ${SPRING_PROFILES_ACTIVE:local}
   security:
     user:
       name: ${EUREKA_USR}
