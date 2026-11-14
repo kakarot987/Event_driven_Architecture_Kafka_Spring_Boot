@@ -1,88 +1,46 @@
 package com.eventDrivenKafka.orderservice.event;
 
-import com.eventDrivenKafka.orderservice.persistence.OutboxEvent;
-import com.eventDrivenKafka.orderservice.persistence.OutboxRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.eventDrivenKafka.orderservice.persistence.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.Message;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-@Component
-@Slf4j
+@Component @Slf4j
 public class OrderEventPublisher {
-
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final OutboxRepository outboxRepository;
-    private final ObjectMapper objectMapper;
-
-    public OrderEventPublisher(KafkaTemplate<String, String> kafkaTemplate, OutboxRepository outboxRepository, ObjectMapper objectMapper) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.outboxRepository = outboxRepository;
-        this.objectMapper = objectMapper;
+    private static final int MAX_ATTEMPTS=8;
+    private final KafkaTemplate<String,String> kafka;
+    private final OutboxRepository outbox;
+    public OrderEventPublisher(KafkaTemplate<String,String> kafka,OutboxRepository outbox){
+        this.kafka=kafka;this.outbox=outbox;
     }
-
-    /**
-     * Polls pending outbox events and publishes them to Kafka
-     * Runs every 5 seconds
-     */
-    @Scheduled(fixedRate = 5000)
-    @Transactional
-    public void publishPendingEvents() {
-        List<OutboxEvent> pendingEvents = outboxRepository.findPendingEvents();
-
-        if (pendingEvents.isEmpty()) {
-            return;
-        }
-
-        log.info("Found {} pending outbox events to publish", pendingEvents.size());
-
-        for (OutboxEvent event : pendingEvents) {
-            try {
-                publishEvent(event);
-                markEventAsPublished(event);
-            } catch (Exception e) {
-                log.error("Failed to publish outbox event: {}", event.getId(), e);
-                markEventAsFailed(event);
+    @Scheduled(fixedDelay=5000) @Transactional
+    public void publishPendingEvents(){
+        var events=outbox.findReady(OutboxEvent.PublishStatus.PENDING,LocalDateTime.now(),PageRequest.of(0,20));
+        for(var event:events){
+            try{
+                kafka.send(event.getTopicName(),event.getAggregateId(),event.getPayload()).get(10,TimeUnit.SECONDS);
+                event.setPublishStatus(OutboxEvent.PublishStatus.PUBLISHED);
+                event.setPublishedAt(LocalDateTime.now());
+                event.setNextAttemptAt(null);
+                log.info("Kafka acknowledged outbox event {}",event.getId());
+            }catch(Exception e){
+                int tries=event.getAttempts()+1;
+                event.setAttempts(tries);
+                if(tries>=MAX_ATTEMPTS){
+                    event.setPublishStatus(OutboxEvent.PublishStatus.FAILED);
+                    log.error("Outbox event {} exhausted retries; inspect FAILED events",event.getId(),e);
+                }else{
+                    event.setNextAttemptAt(LocalDateTime.now().plusSeconds(Math.min(300,1L<<tries)));
+                    log.warn("Outbox event {} will retry (attempt {})",event.getId(),tries);
+                }
             }
+            outbox.save(event);
         }
-    }
-
-    private void publishEvent(OutboxEvent event) throws Exception {
-        String topicName = event.getTopicName();
-        String aggregateId = event.getAggregateId();
-        String payload = event.getPayload();
-
-        // Create Kafka message with orderId as key (for partitioning)
-        Message<String> message = MessageBuilder
-                .withPayload(payload)
-                .setHeader(KafkaHeaders.TOPIC, topicName)
-                .setHeader(KafkaHeaders.KEY, aggregateId)
-                .build();
-
-        kafkaTemplate.send(message);
-        log.info("Event published to topic '{}' with key '{}'", topicName, aggregateId);
-    }
-
-    @Transactional
-    private void markEventAsPublished(OutboxEvent event) {
-        event.setPublishStatus(OutboxEvent.PublishStatus.PUBLISHED);
-        event.setPublishedAt(LocalDateTime.now());
-        outboxRepository.save(event);
-        log.info("Outbox event marked as published: {}", event.getId());
-    }
-
-    @Transactional
-    private void markEventAsFailed(OutboxEvent event) {
-        event.setPublishStatus(OutboxEvent.PublishStatus.FAILED);
-        outboxRepository.save(event);
-        log.warn("Outbox event marked as failed: {}", event.getId());
+        // Ack-then-crash may cause duplicate delivery. Consumers must deduplicate stable event IDs.
     }
 }
