@@ -15,7 +15,7 @@ Status reflects **code present on the hardening branch**, not verified runtime b
 - [x] P1 Implement order status listeners for payment, inventory and shipping topics (requires integration verification)
 - [x] P2 Remove committed Terraform state/provider cache from current tree
 - [x] P2 Replace minimal README and document real known limitations
-- [ ] P2 Separate and verify minimal local Compose from optional monitoring stack
+- [x] P2 Separate minimal local Compose from optional monitoring stack (runtime verification outstanding)
 
 ## Further reliability and security tasks
 

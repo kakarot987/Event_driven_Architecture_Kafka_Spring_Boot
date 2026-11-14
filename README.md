@@ -39,7 +39,7 @@ The original `.env`, JWT signing secret, provider key and test credentials exist
 
 ## Local developer workflow
 
-1. Configure an isolated database and a Kafka broker (see `docker-compose.yml` for infrastructure reference). Compose includes extra monitoring and service-discovery components, so it is **not yet a validated minimal quickstart**.
+1. For the core demo, set `DB_PASSWORD` in an untracked `.env`, then run `docker compose -f compose.core.yml up --build`. This isolates MySQL, Kafka, order, payment, inventory and shipping. It has **not** been verified end-to-end in CI; check logs and database initialization before relying on it. The larger `docker-compose.yml` is an optional legacy monitoring stack.
 2. Supply `DB_PASSWORD`, `JWT_SECRET`, `KAFKA_BOOTSTRAP_SERVERS` and database JDBC URLs to the services.
 3. Build modules with the root Gradle wrapper. Start infrastructure, then services, with credentials injected only at runtime.
 4. Call `POST /api/orders` with a JSON body matching `CreateOrderRequest`; query `GET /api/orders/{orderId}` for the persisted order. Use service actuator/health endpoints and Kafka consumers to observe events.
