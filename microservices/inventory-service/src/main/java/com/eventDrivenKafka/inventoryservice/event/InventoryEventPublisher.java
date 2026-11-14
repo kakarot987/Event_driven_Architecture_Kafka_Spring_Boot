@@ -8,6 +8,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
@@ -29,7 +30,7 @@ public class InventoryEventPublisher {
                     .setHeader(KafkaHeaders.TOPIC, "inventory-events")
                     .setHeader(KafkaHeaders.KEY, orderId)
                     .build();
-            kafkaTemplate.send(message);
+            kafkaTemplate.send(message).get(10, TimeUnit.SECONDS);
             log.info("Published inventory event for order {} status={}", orderId, event.getStatus());
         } catch (Exception e) {
             log.error("Failed to publish inventory event for order {}", orderId, e);

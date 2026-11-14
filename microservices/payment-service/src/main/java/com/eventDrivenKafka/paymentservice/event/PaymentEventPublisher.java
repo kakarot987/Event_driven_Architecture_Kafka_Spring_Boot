@@ -9,6 +9,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import java.util.concurrent.TimeUnit;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -52,7 +53,7 @@ public class PaymentEventPublisher {
                     .setHeader(KafkaHeaders.KEY, paymentResponse.getOrderId())
                     .build();
 
-            kafkaTemplate.send(message);
+            kafkaTemplate.send(message).get(10, TimeUnit.SECONDS);
             log.info("PaymentProcessedEvent published for order: {} - Status: {}",
                     paymentResponse.getOrderId(), paymentResponse.getStatus());
 
