@@ -34,41 +34,43 @@ public class InventoryService {
     public InventoryReservedEvent reserveInventory(String eventId, String orderId,
                                                       List<OrderPlacedEvent.OrderItem> requestedItems,
                                                       int partition, long offset) {
-        // Idempotency guard
-        if (isEventAlreadyProcessed(eventId)) {
-            log.warn("Event already processed: {}", eventId);
+        // A delivery retried after database commit but before Kafka publication must
+        // reuse its existing reservation instead of decrementing stock twice.
+        var previous = reservationRepository.findByOrderId(orderId);
+        if (!previous.isEmpty()) {
+            var alreadyReserved = previous.stream()
+                    .map(r -> new OrderPlacedEvent.OrderItem(r.getProductId(), r.getQuantity(), null))
+                    .collect(Collectors.toList());
             return InventoryReservedEvent.builder()
                     .eventId(java.util.UUID.randomUUID().toString())
-                    .orderId(orderId)
-                    .status("FAILED")
-                    .failureReason("AlreadyProcessed")
-                    .timestamp(java.time.LocalDateTime.now())
-                    .eventType("InventoryReservedEvent")
-                    .build();
+                    .orderId(orderId).status("RESERVED").items(alreadyReserved)
+                    .timestamp(java.time.LocalDateTime.now()).eventType("InventoryReservedEvent").build();
         }
 
         // Check availability
         List<String> insufficient = new ArrayList<>();
-        Map<String, Integer> reduced = new HashMap<>();
+        Map<String, Integer> reduced = new LinkedHashMap<>();
+        Map<String, Product> locked = new HashMap<>();
 
-        for (var item : requestedItems) {
+        for (var item : requestedItems.stream().sorted(Comparator.comparing(OrderPlacedEvent.OrderItem::getProductId)).toList()) {
             var optProduct = productRepository.findByProductId(item.getProductId());
             if (optProduct.isEmpty()) {
                 insufficient.add(item.getProductId());
                 continue;
             }
             var product = optProduct.get();
-            if (product.getAvailableQuantity() < item.getQuantity()) {
+            locked.put(product.getProductId(), product);
+            int desired = reduced.getOrDefault(product.getProductId(), 0) + item.getQuantity();
+            if (item.getQuantity() == null || item.getQuantity() <= 0 || product.getAvailableQuantity() < desired) {
                 insufficient.add(item.getProductId());
             } else {
-                reduced.put(product.getProductId(), item.getQuantity());
+                reduced.put(product.getProductId(), desired);
             }
         }
 
         if (!insufficient.isEmpty()) {
             String reason = "Insufficient stock for: " + String.join(",", insufficient);
             log.info("Reservation failed for order {}: {}", orderId, reason);
-            markEventProcessed(eventId, orderId, "PaymentProcessedEvent", "payment-events", partition, offset);
             return InventoryReservedEvent.builder()
                     .eventId(java.util.UUID.randomUUID().toString())
                     .orderId(orderId)
@@ -82,7 +84,7 @@ public class InventoryService {
         // reserve by decrementing stock and saving reservation rows
         List<InventoryReservation> reservations = new ArrayList<>();
         for (var e : reduced.entrySet()) {
-            var product = productRepository.findByProductId(e.getKey()).get();
+            var product = locked.get(e.getKey());
             product.setAvailableQuantity(product.getAvailableQuantity() - e.getValue());
             productRepository.save(product);
 
@@ -97,7 +99,6 @@ public class InventoryService {
         }
 
         // mark event processed
-        markEventProcessed(eventId, orderId, "PaymentProcessedEvent", "payment-events", partition, offset);
 
         // build success event DTO
         var items = reservations.stream()
@@ -115,17 +116,4 @@ public class InventoryService {
                 .build();
     }
 
-    private void markEventProcessed(String eventId, String aggregateId, String eventType,
-                                    String topicName, int partition, long offset) {
-        if (processedEventRepository.findByEventId(eventId).isPresent()) return;
-        ProcessedEvent pe = ProcessedEvent.builder()
-                .eventId(eventId)
-                .aggregateId(aggregateId)
-                .eventType(eventType)
-                .topicName(topicName)
-                .partitionId(partition)
-                .offset(offset)
-                .build();
-        processedEventRepository.save(pe);
-    }
 }

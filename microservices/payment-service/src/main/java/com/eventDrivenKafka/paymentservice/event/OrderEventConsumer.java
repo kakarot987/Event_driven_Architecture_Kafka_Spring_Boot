@@ -65,18 +65,11 @@ public class OrderEventConsumer {
                     event.getAmount(),
                     event.getItems()
             );
-            // Mark event as processed
-            idempotencyService.markEventAsProcessed(
-                    eventId,
-                    orderId,
-                    "OrderPlacedEvent",
-                    "order-events",
-                    partitionId,
-                    offset
-            );
-
+            // Publish first; only record incoming delivery as processed after broker acknowledgement.
+            // Processed payments are idempotently returned by PaymentService on replay.
             // Publish PaymentProcessedEvent (will include items + amount)
             paymentEventPublisher.publishPaymentProcessedEvent(paymentResponse);
+            idempotencyService.markEventAsProcessed(eventId, orderId, "OrderPlacedEvent", "order-events", partitionId, offset);
 
             log.info("Payment processing completed for order: {}", orderId);
 
