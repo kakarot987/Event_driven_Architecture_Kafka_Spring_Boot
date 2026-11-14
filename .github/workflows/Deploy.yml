@@ -1,36 +1,21 @@
-name: Continuous Deployment
-
+name: Deployment validation (no automatic apply)
 on:
-  push:
-    branches:
-      - main
-
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/Deploy.yml'
 jobs:
-  deploy:
-    name: Deploy with Terraform
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.1.7"
-
-      - name: Terraform Init
-        working-directory: ./terraform/local
-        run: terraform init
-
-      - name: Validate Terraform
-        working-directory: ./terraform/local
-        run: terraform validate
-
-      - name: Terraform plan
-        working-directory: ./terraform/local
-        run: terraform plan
-
-      - name: Terraform Apply
-        working-directory: ./terraform/local
-        run: terraform apply -auto-approve
+          terraform_version: '1.10.5'
+      - name: Validate
+        working-directory: terraform/local
+        run: |
+          terraform init -backend=false
+          terraform validate
+# Do not auto-apply demo Terraform on push; it does not deploy the complete application.
