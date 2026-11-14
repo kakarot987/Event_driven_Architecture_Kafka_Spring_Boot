@@ -1,7 +1,12 @@
 global:
   scrape_interval: 15s
-
 scrape_configs:
-  - job_name: 'microservices'
+  - job_name: spring-services
+    metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ['config-repo:8080', 'service-a:8081', 'service-b:8082']
+      - targets:
+          - order-service:8081
+          - payment-service:8082
+          - inventory-service:8083
+          - shipping-service:8084
+          - notification-service:8085
