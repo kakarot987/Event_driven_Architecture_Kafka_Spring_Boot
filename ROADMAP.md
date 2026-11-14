@@ -12,7 +12,7 @@ Status reflects **code present on the hardening branch**, not verified runtime b
 - [ ] P1 Full order → payment → inventory → shipping integration test, including eventual state
 - [ ] P1 Crash/replay/DLT integration tests with running Kafka and MySQL
 - [x] P1 Introduce pessimistic product row locks to prevent oversell
-- [ ] P1 Implement order status listeners for payment, inventory and shipping topics
+- [x] P1 Implement order status listeners for payment, inventory and shipping topics (requires integration verification)
 - [x] P2 Remove committed Terraform state/provider cache from current tree
 - [x] P2 Replace minimal README and document real known limitations
 - [ ] P2 Separate and verify minimal local Compose from optional monitoring stack

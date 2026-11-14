@@ -50,7 +50,7 @@ The original `.env`, JWT signing secret, provider key and test credentials exist
 - The **order outbox** waits for Kafka acknowledgement, retries with backoff, and marks an exhausted event `FAILED`; monitor and investigate failures. Delivery remains **at least once**, and duplicates are possible after ack-before-commit crashes.
 - Payment, inventory and shipping event publication now waits for acknowledgement before marking incoming events processed. This reduces loss windows but does **not** provide an atomic database/outgoing-event transaction. Extend the transactional outbox to each service and test crash points before claiming lossless choreography.
 - Inventory now uses database row locks for stock checks; this has not yet been stress-tested for contention or duplicate concurrent order events.
-- Order statuses are modeled but downstream Kafka consumers do not update them yet.
+- Order status listeners consume downstream payment/inventory/shipping outcomes, but ordering/race behavior still needs end-to-end verification.
 - Dead-letter recoverers send all failures to partition 0 on each one-partition DLT. DLT replay and alerting remain manual.
 - CI and service-to-service integration have not been independently verified. The Terraform setup is a local demo, not a stack deployment.
 - Email recovery needs rate limiting and security review. Previously issued JWTs remain valid until expiry unless signing keys are rotated or token revocation is implemented.
