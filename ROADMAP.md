@@ -23,13 +23,19 @@ Core E2E successful CI run: https://github.com/kakarot987/Event_driven_Architect
 ## Remaining work
 
 - [ ] P0 Rotate any exposed real-world keys and passwords from repository history and invalidate active JWTs
-- [ ] P0 Verify gateway routing and authentication policy when enabling non-demo infrastructure
-- [ ] P1 Test downstream outage windows, multi-instance outbox polling, consumer crash points and DLT replay
-- [ ] P1 Add concurrency stress tests for duplicate deliveries and simultaneous inventory reservation
-- [ ] P1 Monitor and manually replay terminal `FAILED` outbox rows; introduce alerts and recovery procedures
+- [x] P0 Verify gateway route in isolated Compose with Eureka/Config Server disabled
+- [ ] P0 Verify gateway discovery, Config Server integration and authentication policy for non-demo deployments
+- [x] P1 Verify real payment-events.DLT publication, audited one-time replay and shipment recovery
+- [ ] P1 Test all downstream crash points and multi-instance outbox polling
+- [x] P1 Test 12 concurrent orders with three inventory-service replicas against 4 stock units
+- [ ] P1 Repeat higher-volume multi-product and duplicate-delivery stress tests
+- [x] P1 Add audited, bounded, explicit manual replay for terminal `FAILED` outbox rows (simulated exhaustion tested)
+- [ ] P1 Verify actual eight-attempt exhaustion, metrics/alerts and incident playbooks
 - [ ] P1 Review stock shortfall/failed payment compensation and order-state transitions under out-of-order events
 - [ ] P2 Rate-limit and audit password-reset requests; verify real SMTP and password-reset UI
 - [ ] P2 Validate full observability, secrets injection, Terraform and optional monitoring stack
 - [ ] P2 Replace mock payment and simulated notification delivery before claiming real integrations
 
 The four outboxes offer **at-least-once delivery**, not cross-service exactly-once guarantees.
+
+Reliability E2E CI evidence: https://github.com/kakarot987/Event_driven_Architecture_Kafka_Spring_Boot/actions/runs/43808339924
