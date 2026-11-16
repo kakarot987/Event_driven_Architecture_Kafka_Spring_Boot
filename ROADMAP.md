@@ -1,3 +1,19 @@
+# Current release gates (audit: 16 November 2026)
+
+**Production status: BLOCKED.** Current implementation is a verified local Kafka architecture demonstration, not a certified secure deployment. See [ARCHITECTURE_SECURITY_AUDIT.md](ARCHITECTURE_SECURITY_AUDIT.md) and [README.md](README.md).
+
+- [ ] **P0:** Review and rotate historically exposed credentials ever used outside throwaway development; remove fixed credentials and development Vault root-token assumptions from shared/public deployment paths
+- [ ] **P0:** Add authenticated, per-user/per-role authorization to order, inventory, shipping and gateway routes; negative authorization tests; never expose `core-demo`
+- [ ] **P1:** Make password change/reset invalidate previously issued JWTs; add recovery throttling, verified-email enrollment and SMTP tests
+- [ ] **P1:** Enforce order-status transitions under concurrency; validate prices and ownership server-side
+- [ ] **P1:** Test all downstream failure/duplicate/crash points and real outbox retry exhaustion; add monitoring and operator access controls
+- [ ] **P1:** Validate Eureka/Config Server/Vault end to end and protect actuator/management interfaces
+- [ ] **P2:** Normalize shipping event types and test replay for all DLT topics
+
+The checklist below tracks implemented components and earlier evidence; it must **not** be interpreted as overriding these release gates.
+
+---
+
 # Improvement tracker
 
 Status below distinguishes implemented features **verified by automated tests** from remaining hardening tasks. This project is not production-ready.
