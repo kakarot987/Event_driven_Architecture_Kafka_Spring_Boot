@@ -64,6 +64,26 @@ def request(method, path, data=None):
         return json.load(response) if path != "/api/orders/health" else response.read().decode()
 
 
+def consumer_group_ready(group):
+    """Require stable group membership so startup rebalances cannot race the first event."""
+    report = command("exec", "-T", "kafka",
+                     "/opt/kafka/bin/kafka-consumer-groups.sh",
+                     "--bootstrap-server", "kafka:9092",
+                     "--describe", "--group", group, "--state")
+    return bool(re.search(r"(?m)^" + re.escape(group) + r"\\s+.*\\bStable\\s+\\d+\\s*$",
+                          report.strip(), re.IGNORECASE))
+
+
+def wait_for_core_consumers():
+    # The four services are started together; a broker accepting metadata requests
+    # does not mean its group coordinators have finished stabilizing.
+    for group in ("payment-service-group", "inventory-service-group",
+                  "shipping-service-group", "order-status-payment-group",
+                  "order-status-inventory-group", "order-status-shipping-group"):
+        eventually(f"consumer group {group} stable", lambda group=group:
+                   consumer_group_ready(group), timeout=180, interval=3)
+
+
 def run_order(label):
     unique = uuid.uuid4().hex[:12]
     product = "E2E-" + unique
@@ -132,6 +152,7 @@ def replay_order_event(order_id, product):
 
 def main():
     eventually("order HTTP ready", lambda: "running" in request("GET", "/api/orders/health"))
+    wait_for_core_consumers()
     first, product = run_order("happy path")
     replay_order_event(first, product)
 

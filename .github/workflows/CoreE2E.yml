@@ -19,11 +19,27 @@ jobs:
         run: echo "DB_PASSWORD=$(openssl rand -hex 20)" >> "$GITHUB_ENV"
       - name: Validate Compose model
         run: docker compose -f compose.core.yml config --quiet
-      - name: Build and start core services
-        run: docker compose -f compose.core.yml up -d --build
+      - name: Build core service images
+        run: docker compose -f compose.core.yml build
+      - name: Start MySQL and Kafka first
+        run: docker compose -f compose.core.yml up -d mysql kafka
+      - name: Create Kafka topics before starting consumers
+        run: |
+          for topic in order-events payment-events inventory-events shipping-events; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 3 --replication-factor 1
+          done
+          for topic in order-events.DLT payment-events.DLT inventory-events.DLT shipping-events.DLT; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 1 --replication-factor 1
+          done
+      - name: Start core business services
+        run: docker compose -f compose.core.yml up -d --no-build order-service payment-service inventory-service shipping-service
       - name: Execute real order-to-shipment and recovery tests
         env:
-          E2E_TIMEOUT_SECONDS: '120'
+          E2E_TIMEOUT_SECONDS: '180'
         run: python3 scripts/core_e2e.py
       - name: Inspect MySQL event progression after failure
         if: failure()
