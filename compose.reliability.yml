@@ -1,0 +1,7 @@
+# Test-only overlay. Activates a deterministic failure injector to exercise
+# Kafka's retry -> DLT -> operator replay lifecycle. Never use in production.
+services:
+  inventory-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: reliability-test
+      SPRING_KAFKA_LISTENER_CONCURRENCY: "2"

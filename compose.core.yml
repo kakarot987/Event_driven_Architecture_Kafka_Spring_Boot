@@ -111,6 +111,22 @@ services:
       kafka: {condition: service_healthy}
     networks: [core]
 
+  gateway:
+    profiles: ["gateway-test"]
+    build:
+      context: .
+      dockerfile: spring_cloud/gateway/Dockerfile
+    environment:
+      SERVER_PORT: "8080"
+      ORDER_SERVICE_URL: http://order-service:8081
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: "false"
+      SPRING_CONFIG_IMPORT: ""
+    depends_on:
+      order-service: {condition: service_started}
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [core]
+
 volumes:
   core-mysql-data:
 
