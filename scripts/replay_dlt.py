@@ -60,12 +60,12 @@ def load(source, offset):
                   "--partition", "0", "--offset", str(offset),
                   "--max-messages", "1", "--timeout-ms", "8000",
                   "--property", "print.key=true",
-                  "--property", "key.separator=\t",
+                  "--property", "key.separator=:",
                   timeout=20)
     lines = [line for line in out.splitlines() if line.strip()]
-    if len(lines) != 1 or "\t" not in lines[0]:
+    if len(lines) != 1 or ":" not in lines[0]:
         raise RuntimeError("DLT record missing or Kafka key unavailable")
-    key, raw = lines[0].split("\t", 1)
+    key, raw = lines[0].split(":", 1)
     return key, raw, json.loads(raw)
 
 
