@@ -62,11 +62,22 @@ def load(source, offset):
                   "--property", "print.key=true",
                   "--property", "key.separator=:",
                   timeout=20)
-    lines = [line for line in out.splitlines() if line.strip()]
-    if len(lines) != 1 or ":" not in lines[0]:
-        raise RuntimeError("DLT record missing or Kafka key unavailable")
-    key, raw = lines[0].split(":", 1)
-    return key, raw, json.loads(raw)
+    # Kafka's console consumer may emit a message-count or warning line in
+    # addition to the record. Locate a validated JSON record instead of
+    # assuming stdout consists of exactly one line.
+    for line in out.splitlines():
+        if ":" not in line:
+            continue
+        key, raw = line.split(":", 1)
+        if not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", key):
+            continue
+        try:
+            event = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("eventId"):
+            return key, raw, event
+    raise RuntimeError("DLT record not found in Kafka consumer output: " + repr(out[:240]))
 
 
 def replay(source, offset, expected_event_id, operator):
