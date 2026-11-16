@@ -5,6 +5,8 @@ import com.eventDrivenKafka.inventoryservice.persistence.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
+import com.eventDrivenKafka.inventoryservice.event.ReliabilityTestFailureInjector;
 import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -17,14 +19,18 @@ public class InventoryChoreographyService {
     private final OutboxRepository outbox;
     private final ProcessedEventRepository processed;
     private final ObjectMapper mapper;
+    private final ObjectProvider<ReliabilityTestFailureInjector> testInjector;
     public InventoryChoreographyService(InventoryService inventory,OutboxRepository outbox,
-            ProcessedEventRepository processed,ObjectMapper mapper){
+            ProcessedEventRepository processed,ObjectMapper mapper,
+            ObjectProvider<ReliabilityTestFailureInjector> testInjector){
         this.inventory=inventory;this.outbox=outbox;this.processed=processed;this.mapper=mapper;
+        this.testInjector=testInjector;
     }
 
     @Transactional
     public void handle(PaymentProcessedEvent incoming,int partition,long offset) throws JsonProcessingException {
         if(processed.findByEventId(incoming.getEventId()).isPresent()) return;
+        testInjector.ifAvailable(injector -> injector.maybeFail(incoming));
         if("SUCCESS".equalsIgnoreCase(incoming.getStatus())
                 && outbox.findByAggregateIdAndEventType(incoming.getOrderId(),"InventoryReservedEvent").isEmpty()) {
             List<OrderPlacedEvent.OrderItem> items=incoming.getItems();

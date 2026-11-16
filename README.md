@@ -68,3 +68,7 @@ The repository historically contained committed credentials, a signing key and a
 - Terraform describes a local sample, not a production deployment.
 
 See [ROADMAP.md](ROADMAP.md) for remaining verification and operational work.
+
+## Verified gateway and reliability scenarios
+
+[Gateway and Kafka reliability E2E](https://github.com/kakarot987/Event_driven_Architecture_Kafka_Spring_Boot/actions/runs/43808339924) passed with real containers, verifying WebFlux gateway routing, three-replica stock contention (12 orders competing for 4 units), explicit audited terminal-outbox requeue, and successful replay of a real DLT record. See [RELIABILITY.md](RELIABILITY.md) for the operator procedures and limits. Gateway testing disabled Eureka/Config Server, and terminal failure was simulated rather than waiting for actual retry exhaustion.

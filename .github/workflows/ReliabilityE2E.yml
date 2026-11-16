@@ -1,0 +1,83 @@
+name: Gateway and Kafka reliability E2E
+on:
+  pull_request:
+    paths:
+      - 'microservices/**'
+      - 'spring_cloud/gateway/**'
+      - 'compose.core.yml'
+      - 'compose.reliability.yml'
+      - 'mysql-init-core/**'
+      - 'scripts/reliability_e2e.py'
+      - 'scripts/replay_failed_outbox.py'
+      - 'scripts/replay_dlt.py'
+      - '.github/workflows/ReliabilityE2E.yml'
+  workflow_dispatch:
+
+jobs:
+  reliability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate disposable database password
+        run: echo "DB_PASSWORD=$(openssl rand -hex 20)" >> "$GITHUB_ENV"
+      - name: Validate Compose configuration
+        run: docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml config --quiet
+      - name: Build real core services and Gateway
+        run: docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml build
+      - name: Start MySQL and Kafka
+        run: docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml up -d mysql kafka
+      - name: Create all source and DLT Kafka topics
+        run: |
+          for topic in order-events payment-events inventory-events shipping-events; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 3 --replication-factor 1
+          done
+          for topic in order-events.DLT payment-events.DLT inventory-events.DLT shipping-events.DLT; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 1 --replication-factor 1
+          done
+      - name: Start Gateway and scaled inventory consumer pool
+        run: |
+          docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml \
+            up -d --no-build --scale inventory-service=3 \
+            order-service payment-service inventory-service shipping-service gateway
+      - name: Run real reliability scenarios
+        env:
+          E2E_TIMEOUT_SECONDS: '180'
+        run: python3 -u scripts/reliability_e2e.py
+      - name: Inspect Kafka DLT contents after failure
+        if: failure()
+        run: |
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --describe --topic payment-events.DLT || true
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka:9092 \
+            --topic payment-events.DLT || true
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 \
+            --topic payment-events.DLT --partition 0 --offset 0 \
+            --max-messages 1 --timeout-ms 5000 \
+            --property print.key=true --property key.separator=: || true
+      - name: Inspect database state after failure
+        if: failure()
+        run: |
+          for db in order_db payment_db inventory_db shipping_db; do
+            echo "--- $db ---"
+            docker compose -f compose.core.yml exec -T -e MYSQL_PWD="$DB_PASSWORD" mysql \
+              mysql -uroot -e "SELECT id,aggregate_id,event_type,publish_status,attempts FROM $db.outbox_events ORDER BY id DESC LIMIT 15;" || true
+          done
+          docker compose -f compose.core.yml exec -T -e MYSQL_PWD="$DB_PASSWORD" mysql \
+            mysql -uroot -e "SELECT order_id,status FROM order_db.orders ORDER BY id DESC LIMIT 20; SELECT product_id,available_quantity FROM inventory_db.products ORDER BY id DESC LIMIT 20; SELECT * FROM order_db.dlt_replay_audit;" || true
+      - name: Print service errors after failure
+        if: failure()
+        run: |
+          docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml \
+            logs --no-color --tail=500 gateway order-service payment-service inventory-service shipping-service \
+            | grep -Ei 'ERROR|Exception|outbox|DLT|dead-letter|gateway|failed' | tail -n 300 || true
+      - name: Tear down disposable containers and volumes
+        if: always()
+        run: docker compose --profile gateway-test -f compose.core.yml -f compose.reliability.yml down -v --remove-orphans
