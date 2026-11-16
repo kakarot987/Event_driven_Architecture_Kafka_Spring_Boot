@@ -1,0 +1,33 @@
+name: Core Kafka / MySQL choreography E2E
+on:
+  pull_request:
+    paths:
+      - 'microservices/**'
+      - 'compose.core.yml'
+      - 'mysql-init-core/**'
+      - 'scripts/core_e2e.py'
+      - '.github/workflows/CoreE2E.yml'
+  workflow_dispatch:
+
+jobs:
+  core-end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated test-only database password
+        run: echo "DB_PASSWORD=$(openssl rand -hex 20)" >> "$GITHUB_ENV"
+      - name: Validate Compose model
+        run: docker compose -f compose.core.yml config --quiet
+      - name: Build and start core services
+        run: docker compose -f compose.core.yml up -d --build
+      - name: Execute real order-to-shipment and recovery tests
+        env:
+          E2E_TIMEOUT_SECONDS: '240'
+        run: python3 scripts/core_e2e.py
+      - name: Print service logs after failure
+        if: failure()
+        run: docker compose -f compose.core.yml logs --tail=120
+      - name: Tear down isolated environment
+        if: always()
+        run: docker compose -f compose.core.yml down --volumes --remove-orphans
