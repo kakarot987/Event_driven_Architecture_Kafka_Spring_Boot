@@ -8,6 +8,7 @@ import com.eventDrivenKafka.paymentservice.dto.PaymentResponse;
 // removed unused local DTO import; using canonical events from common-events
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -19,6 +20,9 @@ import java.util.List;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
+
+    @Value("${app.mock-payment.force-success:false}")
+    private boolean forceSuccess;
 
     public PaymentService(PaymentRepository paymentRepository) {
         this.paymentRepository = paymentRepository;
@@ -78,7 +82,7 @@ public class PaymentService {
      * Simulates payment processing with 80% success rate
      */
     private boolean simulatePaymentProcessing() {
-        return Math.random() < 0.8; // 80% success rate
+        return forceSuccess || Math.random() < 0.8; // 80% success rate
     }
 
     private PaymentResponse mapToResponse(Payment payment) {
