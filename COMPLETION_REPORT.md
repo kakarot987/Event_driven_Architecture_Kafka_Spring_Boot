@@ -1,3 +1,7 @@
+> **ARCHIVED / HISTORICAL — not a current readiness certification.** The statements below reflect an earlier development checkpoint and may claim complete production security, Vault integration, or full tests that have **not** been validated for deployment. See [current README](README.md), [architecture/security audit](ARCHITECTURE_SECURITY_AUDIT.md), and [CI evidence](https://github.com/kakarot987/Event_driven_Architecture_Kafka_Spring_Boot/actions/runs/43808339924).
+
+---
+
 # ✅ EVENT-DRIVEN ARCHITECTURE FINALIZATION - COMPLETION REPORT
 
 **Date:** September 28, 2026  
