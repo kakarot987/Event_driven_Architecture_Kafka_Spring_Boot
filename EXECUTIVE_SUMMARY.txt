@@ -1,3 +1,5 @@
+ARCHIVED / HISTORICAL (November 2026): Do not treat any production-ready, zero-secret-exposure or full-test-completion claim below as current verification. Current status and source-backed security review: README.md and ARCHITECTURE_SECURITY_AUDIT.md. The working project is a CI-verified local Kafka demonstration, not a production deployment.
+
 # ✅ FINALIZATION COMPLETE - EXECUTIVE SUMMARY
 
 **Date:** September 28, 2026
