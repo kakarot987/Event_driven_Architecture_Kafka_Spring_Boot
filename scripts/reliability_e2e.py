@@ -154,7 +154,11 @@ def dead_letter_replay():
 def get_probe_dlt():
     try:
         return load("payment-events", 0)
-    except (RuntimeError, ValueError, json.JSONDecodeError):
+    except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        message = str(exc)
+        if not getattr(get_probe_dlt, "already_reported", False):
+            print("DLT inspection not yet ready: " + message[:700], flush=True)
+            get_probe_dlt.already_reported = True
         return None
 
 
@@ -164,8 +168,8 @@ def main():
     wait_for_core_consumers()
     gateway_test()
     concurrent_reservations()
-    failed_outbox_recovery()
     dead_letter_replay()
+    failed_outbox_recovery()
     print("PASS: gateway, concurrent stock, terminal outbox recovery and DLT replay", flush=True)
 
 

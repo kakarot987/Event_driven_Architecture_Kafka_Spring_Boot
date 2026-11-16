@@ -48,6 +48,20 @@ jobs:
         env:
           E2E_TIMEOUT_SECONDS: '180'
         run: python3 -u scripts/reliability_e2e.py
+      - name: Inspect Kafka DLT contents after failure
+        if: failure()
+        run: |
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --describe --topic payment-events.DLT || true
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka:9092 \
+            --topic payment-events.DLT || true
+          docker compose -f compose.core.yml exec -T kafka \
+            /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 \
+            --topic payment-events.DLT --partition 0 --offset 0 \
+            --max-messages 1 --timeout-ms 5000 \
+            --property print.key=true --property key.separator=: || true
       - name: Inspect database state after failure
         if: failure()
         run: |
