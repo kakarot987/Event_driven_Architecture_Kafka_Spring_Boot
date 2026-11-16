@@ -1,15 +1,12 @@
 package com.eventDrivenKafka.orderservice.persistence;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
-
-@Repository
-public interface OutboxRepository extends JpaRepository<OutboxEvent, Long> {
-    @Query("SELECT o FROM OutboxEvent o WHERE o.publishStatus = 'PENDING' ORDER BY o.createdAt ASC")
-    List<OutboxEvent> findPendingEvents();
-
+import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.*;
+import java.time.LocalDateTime;
+import java.util.*;
+public interface OutboxRepository extends JpaRepository<OutboxEvent,Long>{
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from OutboxEvent o where o.publishStatus = :status and (o.nextAttemptAt is null or o.nextAttemptAt <= :now) order by o.createdAt asc")
+    List<OutboxEvent> findReady(OutboxEvent.PublishStatus status,LocalDateTime now,Pageable page);
     Optional<OutboxEvent> findByAggregateId(String aggregateId);
 }

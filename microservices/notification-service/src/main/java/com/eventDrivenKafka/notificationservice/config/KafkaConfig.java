@@ -82,7 +82,7 @@ public class KafkaConfig {
 
         var factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
         factory.setConsumerFactory(cf);
-        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, (r, e) -> new TopicPartition(r.topic() + ".DLT", r.partition()));
+        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate, (r, e) -> new TopicPartition(r.topic() + ".DLT", 0));
         var handler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
         factory.setCommonErrorHandler(handler);
         return factory;

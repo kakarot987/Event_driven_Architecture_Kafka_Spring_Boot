@@ -64,7 +64,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(consumerFactory);
 
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
-                (record, ex) -> new TopicPartition(record.topic() + ".DLT", record.partition()));
+                (record, ex) -> new TopicPartition(record.topic() + ".DLT", 0));
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2L));
         factory.setCommonErrorHandler(errorHandler);

@@ -1,6 +1,7 @@
 global:
   scrape_interval: 15s
 scrape_configs:
-  - job_name: 'spring_services'
+  - job_name: spring-services
+    metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ['eureka-server:8761', 'gateway:8080']
+      - targets: ['order-service:8081', 'payment-service:8082', 'inventory-service:8083', 'shipping-service:8084']

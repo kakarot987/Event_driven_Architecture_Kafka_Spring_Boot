@@ -37,6 +37,7 @@ public class User {
 
 	@Size(max = 200)
 	@Schema(description = "Authentication token")
+	@ToString.Exclude
 	private String authToken;
 
 	@Email
@@ -50,6 +51,7 @@ public class User {
 
 	@Size(max = 200)
 	@Schema(description = "User password")
+	@ToString.Exclude
 	private String password;
 
 	@Column

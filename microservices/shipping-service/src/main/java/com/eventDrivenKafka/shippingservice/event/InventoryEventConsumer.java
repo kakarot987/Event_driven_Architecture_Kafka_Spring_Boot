@@ -50,13 +50,11 @@ public class InventoryEventConsumer {
             // Create shipment (idempotent by repository check)
             ShippingCreatedEvent shippingEvent = shippingService.createShipment(event);
 
-            // Mark event as processed
-            idempotencyService.markEventAsProcessed(
-                    event.getEventId(), event.getOrderId(), "InventoryReservedEvent",
-                    "inventory-events", partition, offset);
-
+            // Publish before recording incoming event as processed; shipment creation is idempotent.
             // Publish shipping event keyed by orderId
             shippingEventPublisher.publishShippingCreatedEvent(shippingEvent, event.getOrderId());
+            idempotencyService.markEventAsProcessed(event.getEventId(), event.getOrderId(),
+                    "InventoryReservedEvent", "inventory-events", partition, offset);
         } catch (Exception e) {
             log.error("Failed to process inventory event in shipping service", e);
             throw new RuntimeException(e);

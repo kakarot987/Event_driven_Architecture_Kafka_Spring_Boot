@@ -80,9 +80,25 @@ public class OrderService {
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
+        if (order.getStatus() == OrderStatus.FAILED || order.getStatus() == OrderStatus.CANCELLED
+                || order.getStatus() == OrderStatus.DELIVERED) return;
+        if (status != OrderStatus.FAILED && stage(status) <= stage(order.getStatus())) return;
         order.setStatus(status);
         orderRepository.save(order);
         log.info("Order status updated: {} -> {}", orderId, status);
+    }
+
+    // Prevent late or replayed upstream events from regressing an order's state.
+    private int stage(OrderStatus status) {
+        return switch (status) {
+            case PENDING -> 0;
+            case PAYMENT_PROCESSING -> 1;
+            case PAYMENT_CONFIRMED -> 2;
+            case INVENTORY_RESERVED -> 3;
+            case SHIPPED -> 4;
+            case DELIVERED -> 5;
+            case FAILED, CANCELLED -> 6;
+        };
     }
 
     private Object createOrderPlacedEventPayload(Order order, CreateOrderRequest request) {

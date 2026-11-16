@@ -4,6 +4,8 @@ import com.eventDrivenKafka.commonevents.InventoryReservedEvent;
 import com.eventDrivenKafka.commonevents.OrderPlacedEvent;
 import com.eventDrivenKafka.commonevents.PaymentProcessedEvent;
 import com.eventDrivenKafka.inventoryservice.service.InventoryService;
+import com.eventDrivenKafka.inventoryservice.persistence.ProcessedEventRepository;
+import com.eventDrivenKafka.inventoryservice.persistence.ProcessedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -19,15 +21,17 @@ import java.util.ArrayList;
 public class PaymentEventConsumer {
 
     private final InventoryService inventoryService;
+    private final ProcessedEventRepository processedEvents;
     private final InventoryEventPublisher inventoryEventPublisher;
     private final ObjectMapper objectMapper;
 
     public PaymentEventConsumer(InventoryService inventoryService,
                                 InventoryEventPublisher inventoryEventPublisher,
-                                ObjectMapper objectMapper) {
+                                ObjectMapper objectMapper, ProcessedEventRepository processedEvents) {
         this.inventoryService = inventoryService;
         this.inventoryEventPublisher = inventoryEventPublisher;
         this.objectMapper = objectMapper;
+        this.processedEvents = processedEvents;
     }
 
     @KafkaListener(topics = "payment-events", groupId = "inventory-service-group", containerFactory = "kafkaListenerContainerFactory")
@@ -39,6 +43,7 @@ public class PaymentEventConsumer {
         try {
             log.info("Received payment-event key={} partition={} offset={}", key, partition, offset);
             PaymentProcessedEvent event = objectMapper.readValue(message, PaymentProcessedEvent.class);
+            if (processedEvents.findByEventId(event.getEventId()).isPresent()) return;
 
             if (!"SUCCESS".equalsIgnoreCase(event.getStatus())) {
                 log.info("Payment not successful for order {} - skipping inventory reservation", event.getOrderId());
@@ -69,6 +74,9 @@ public class PaymentEventConsumer {
                     event.getEventId(), event.getOrderId(), requestedItems, partition, offset);
 
             inventoryEventPublisher.publishInventoryReservedEvent(reservedEvent, event.getOrderId());
+            processedEvents.save(ProcessedEvent.builder().eventId(event.getEventId())
+                    .aggregateId(event.getOrderId()).eventType("PaymentProcessedEvent")
+                    .topicName("payment-events").partitionId(partition).offset(offset).build());
 
         } catch (Exception ex) {
             log.error("Error processing payment event", ex);

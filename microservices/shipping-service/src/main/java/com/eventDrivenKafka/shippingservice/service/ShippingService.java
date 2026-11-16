@@ -78,14 +78,8 @@ public class ShippingService {
                     .eventType("SHIPPING_CREATED")
                     .build();
         } catch (Exception e) {
-            log.error("Failed to create shipment", e);
-            return ShippingCreatedEvent.builder()
-                    .eventId(UUID.randomUUID().toString())
-                    .orderId(inventoryEvent.getOrderId())
-                    .status("FAILED")
-                    .timestamp(LocalDateTime.now())
-                    .eventType("SHIPPING_FAILED")
-                    .build();
+            log.error("Unexpected shipment creation failure; allow Kafka retry", e);
+            throw new IllegalStateException("Shipment creation failed", e);
         }
     }
 }

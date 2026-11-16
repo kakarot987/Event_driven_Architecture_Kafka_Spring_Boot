@@ -1,0 +1,101 @@
+# Isolated, minimal development-only stack (no auth, Vault, observability or gateway).
+# Requires DB_PASSWORD in a local untracked .env file. Use only disposable local credentials.
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?set_DB_PASSWORD_in_env}
+    volumes:
+      - core-mysql-data:/var/lib/mysql
+      - ./mysql-init-core:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      retries: 20
+    networks: [core]
+
+  kafka:
+    image: apache/kafka:4.3.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    networks: [core]
+
+  order-service:
+    build:
+      context: .
+      dockerfile: microservices/order-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?set_DB_PASSWORD_in_env}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: "false"
+    depends_on:
+      mysql: {condition: service_healthy}
+      kafka: {condition: service_started}
+    ports: ["8081:8081"]
+    networks: [core]
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: microservices/payment-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/payment_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?set_DB_PASSWORD_in_env}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: "false"
+    depends_on:
+      mysql: {condition: service_healthy}
+      kafka: {condition: service_started}
+    networks: [core]
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: microservices/inventory-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?set_DB_PASSWORD_in_env}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: "false"
+    depends_on:
+      mysql: {condition: service_healthy}
+      kafka: {condition: service_started}
+    networks: [core]
+
+  shipping-service:
+    build:
+      context: .
+      dockerfile: microservices/shipping-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shipping_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:?set_DB_PASSWORD_in_env}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_CLOUD_CONFIG_ENABLED: "false"
+      EUREKA_CLIENT_ENABLED: "false"
+    depends_on:
+      mysql: {condition: service_healthy}
+      kafka: {condition: service_started}
+    networks: [core]
+
+volumes:
+  core-mysql-data:
+
+networks:
+  core:

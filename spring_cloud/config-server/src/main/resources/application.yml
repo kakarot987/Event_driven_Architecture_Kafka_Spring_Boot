@@ -5,7 +5,7 @@ spring:
   application:
     name: config-server
   profiles:
-    active: vault          # <-- was "docker", now points at Vault backend
+    active: ${CONFIG_PROFILE:native}          # <-- was "docker", now points at Vault backend
 
 management:
   endpoint:

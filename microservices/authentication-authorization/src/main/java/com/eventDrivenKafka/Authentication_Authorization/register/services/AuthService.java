@@ -45,30 +45,6 @@ public class AuthService {
 		return new JwtResponse(userId, jwt.getJwt(), jwt.getUsername(), jwt.getRoles());
 	}
 	
-	public boolean changePassword(String email, String password) {
-		User user = findByEmail(email);
-		user.setPassword(passwordEncoder.encode(password));
-		if(userRepository.save(user) != null) {
-			logger.info("Password changed for email: {}", email);
-			return true;
-		}
-		return false;
-	}
-	
-	public boolean changePasswordByMobile(Long phoneNumber, String password) {
-		User user = findByPhoneNumber(phoneNumber);
-		user.setPassword(passwordEncoder.encode(password));
-		if(userRepository.save(user) != null) {
-			logger.info("Password changed for phone: {}", phoneNumber);
-			return true;
-		}
-		return false;
-	}
-
-	private User findByPhoneNumber(Long phoneNumber) {
-		return userRepository.findByPhoneNumber(phoneNumber).get();
-	}
-
 	public User findByEmail(String email) {
 		return userRepository.findByEmail(email).get();        
 	}
