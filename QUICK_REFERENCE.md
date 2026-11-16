@@ -1,3 +1,7 @@
+> **ARCHIVED / HISTORICAL.** Examples below may reference outdated credentials, deployment steps and test completeness. Use [README.md](README.md), [SECURITY.md](SECURITY.md), and [ARCHITECTURE_SECURITY_AUDIT.md](ARCHITECTURE_SECURITY_AUDIT.md) for current instructions and limitations.
+
+---
+
 # 📌 QUICK REFERENCE - All Changes Made
 
 ## 🎯 Summary
