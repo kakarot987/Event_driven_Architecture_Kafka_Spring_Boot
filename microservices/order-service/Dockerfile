@@ -12,6 +12,7 @@ COPY microservices/order-service/build.gradle ./microservices/order-service/
 RUN chmod +x ./gradlew
 
 COPY . .
+RUN chmod +x ./gradlew
 
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
     ./gradlew :microservices:order-service:bootJar \

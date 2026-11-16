@@ -19,6 +19,7 @@ RUN chmod +x ./gradlew
 
 # Copy complete project source
 COPY . .
+RUN chmod +x ./gradlew
 
 # Build the bootJar for payment-service
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \

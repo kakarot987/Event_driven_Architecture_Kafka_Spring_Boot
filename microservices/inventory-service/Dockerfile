@@ -15,6 +15,7 @@ RUN chmod +x ./gradlew
 RUN ./gradlew --version --no-daemon
 
 COPY . .
+RUN chmod +x ./gradlew
 
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
     ./gradlew :microservices:inventory-service:bootJar \
