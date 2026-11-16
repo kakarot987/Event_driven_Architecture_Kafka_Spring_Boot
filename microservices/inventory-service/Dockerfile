@@ -15,6 +15,7 @@ RUN chmod +x ./gradlew
 RUN ./gradlew --version --no-daemon
 
 COPY . .
+RUN chmod +x ./gradlew
 
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
     ./gradlew :microservices:inventory-service:bootJar \
@@ -30,6 +31,6 @@ COPY --from=builder \
     /workspace/microservices/inventory-service/build/libs/*.jar \
     app.jar
 
-EXPOSE 8080
+EXPOSE 8083
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

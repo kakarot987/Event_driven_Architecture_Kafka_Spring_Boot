@@ -19,6 +19,7 @@ RUN chmod +x ./gradlew
 
 # Copy complete project source
 COPY . .
+RUN chmod +x ./gradlew
 
 # Build the bootJar for payment-service
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
@@ -38,6 +39,6 @@ COPY --from=builder \
     /workspace/microservices/payment-service/build/libs/*.jar \
     app.jar
 
-EXPOSE 8080
+EXPOSE 8082
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

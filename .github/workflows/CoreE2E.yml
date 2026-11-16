@@ -1,0 +1,66 @@
+name: Core Kafka / MySQL choreography E2E
+on:
+  pull_request:
+    paths:
+      - 'microservices/**'
+      - 'compose.core.yml'
+      - 'mysql-init-core/**'
+      - 'scripts/core_e2e.py'
+      - '.github/workflows/CoreE2E.yml'
+  workflow_dispatch:
+
+jobs:
+  core-end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate isolated test-only database password
+        run: echo "DB_PASSWORD=$(openssl rand -hex 20)" >> "$GITHUB_ENV"
+      - name: Validate Compose model
+        run: docker compose -f compose.core.yml config --quiet
+      - name: Build core service images
+        run: docker compose -f compose.core.yml build
+      - name: Start MySQL and Kafka first
+        run: docker compose -f compose.core.yml up -d mysql kafka
+      - name: Create Kafka topics before starting consumers
+        run: |
+          for topic in order-events payment-events inventory-events shipping-events; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 3 --replication-factor 1
+          done
+          for topic in order-events.DLT payment-events.DLT inventory-events.DLT shipping-events.DLT; do
+            docker compose -f compose.core.yml exec -T kafka \
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+              --create --if-not-exists --topic "$topic" --partitions 1 --replication-factor 1
+          done
+      - name: Start core business services
+        run: docker compose -f compose.core.yml up -d --no-build order-service payment-service inventory-service shipping-service
+      - name: Execute real order-to-shipment and recovery tests
+        env:
+          E2E_TIMEOUT_SECONDS: '180'
+        run: python3 scripts/core_e2e.py
+      - name: Inspect MySQL event progression after failure
+        if: failure()
+        run: |
+          for db in order_db payment_db inventory_db shipping_db; do
+            echo "--- $db outbox ---"
+            docker compose -f compose.core.yml exec -T -e MYSQL_PWD="$DB_PASSWORD" mysql \
+              mysql -uroot -e "SELECT id,aggregate_id,event_type,publish_status,attempts,next_attempt_at FROM $db.outbox_events ORDER BY id DESC LIMIT 5;" || true
+          done
+          docker compose -f compose.core.yml exec -T -e MYSQL_PWD="$DB_PASSWORD" mysql \
+            mysql -uroot -e "SELECT order_id,status FROM order_db.orders ORDER BY id DESC LIMIT 5;
+            SELECT order_id,status FROM payment_db.payments ORDER BY id DESC LIMIT 5;
+            SELECT order_id,product_id,quantity FROM inventory_db.inventory_reservations ORDER BY id DESC LIMIT 5;
+            SELECT order_id,status FROM shipping_db.shipments ORDER BY id DESC LIMIT 5;" || true
+      - name: Print service logs after failure
+        if: failure()
+        run: |
+          docker compose -f compose.core.yml logs --no-color --tail=500 \
+            order-service payment-service inventory-service shipping-service \
+            | grep -Ei 'ERROR|WARN|Exception|outbox|processed|order created|payment processed|inventory reserved|shipment' \
+            | tail -n 250 || true
+      - name: Tear down isolated environment
+        if: always()
+        run: docker compose -f compose.core.yml down --volumes --remove-orphans

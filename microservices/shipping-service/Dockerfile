@@ -14,6 +14,7 @@ COPY microservices/shipping-service/build.gradle ./microservices/shipping-servic
 RUN chmod +x ./gradlew
 
 COPY . .
+RUN chmod +x ./gradlew
 
 RUN --mount=type=cache,id=gradle-cache,target=/root/.gradle,sharing=locked \
     ./gradlew :microservices:shipping-service:bootJar \
@@ -29,6 +30,6 @@ COPY --from=builder \
     /workspace/microservices/shipping-service/build/libs/*.jar \
     app.jar
 
-EXPOSE 8080
+EXPOSE 8084
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

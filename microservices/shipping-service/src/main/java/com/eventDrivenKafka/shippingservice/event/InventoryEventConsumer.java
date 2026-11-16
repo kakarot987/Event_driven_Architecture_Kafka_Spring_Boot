@@ -1,63 +1,25 @@
 package com.eventDrivenKafka.shippingservice.event;
 
 import com.eventDrivenKafka.commonevents.InventoryReservedEvent;
-import com.eventDrivenKafka.commonevents.ShippingCreatedEvent;
-import com.eventDrivenKafka.shippingservice.service.IdempotencyService;
-import com.eventDrivenKafka.shippingservice.service.ShippingService;
+import com.eventDrivenKafka.shippingservice.service.ShippingChoreographyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.*;
 import org.springframework.stereotype.Component;
 
 @Component
-@Slf4j
 public class InventoryEventConsumer {
-
-    private final ShippingService shippingService;
-    private final ShippingEventPublisher shippingEventPublisher;
-    private final IdempotencyService idempotencyService;
-    private final ObjectMapper objectMapper;
-
-    public InventoryEventConsumer(ShippingService shippingService,
-                                  ShippingEventPublisher shippingEventPublisher,
-                                  IdempotencyService idempotencyService,
-                                  ObjectMapper objectMapper) {
-        this.shippingService = shippingService;
-        this.shippingEventPublisher = shippingEventPublisher;
-        this.idempotencyService = idempotencyService;
-        this.objectMapper = objectMapper;
+    private final ShippingChoreographyService handler;
+    private final ObjectMapper mapper;
+    public InventoryEventConsumer(ShippingChoreographyService handler,ObjectMapper mapper){
+        this.handler=handler;this.mapper=mapper;
     }
-
-    @KafkaListener(topics = "inventory-events", groupId = "shipping-service-group", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(topics="inventory-events",groupId="shipping-service-group")
     public void onInventoryEvent(@Payload String message,
-                                 @Header(KafkaHeaders.RECEIVED_KEY) String key,
-                                 @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-                                 @Header(KafkaHeaders.OFFSET) long offset) {
-
-        try {
-            InventoryReservedEvent event = objectMapper.readValue(message, InventoryReservedEvent.class);
-            log.info("ShippingService received inventory event for order {} status={}", event.getOrderId(), event.getStatus());
-
-            // Check if event already processed (idempotency)
-            if (idempotencyService.isEventAlreadyProcessed(event.getEventId())) {
-                log.info("Inventory event already processed, skipping: {}", event.getEventId());
-                return;
-            }
-
-            // Create shipment (idempotent by repository check)
-            ShippingCreatedEvent shippingEvent = shippingService.createShipment(event);
-
-            // Publish before recording incoming event as processed; shipment creation is idempotent.
-            // Publish shipping event keyed by orderId
-            shippingEventPublisher.publishShippingCreatedEvent(shippingEvent, event.getOrderId());
-            idempotencyService.markEventAsProcessed(event.getEventId(), event.getOrderId(),
-                    "InventoryReservedEvent", "inventory-events", partition, offset);
-        } catch (Exception e) {
-            log.error("Failed to process inventory event in shipping service", e);
-            throw new RuntimeException(e);
-        }
+            @Header(KafkaHeaders.RECEIVED_KEY) String key,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset) throws Exception {
+        handler.handle(mapper.readValue(message,InventoryReservedEvent.class),partition,offset);
     }
 }
