@@ -70,7 +70,7 @@ def consumer_group_ready(group):
                      "/opt/kafka/bin/kafka-consumer-groups.sh",
                      "--bootstrap-server", "kafka:9092",
                      "--describe", "--group", group, "--state")
-    return bool(re.search(r"(?m)^" + re.escape(group) + r"\\s+.*\\bStable\\s+\\d+\\s*$",
+    return bool(re.search(r"(?m)^" + re.escape(group) + r"\s+.*\bStable\s+\d+\s*$",
                           report.strip(), re.IGNORECASE))
 
 
