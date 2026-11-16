@@ -1,3 +1,7 @@
+> **ARCHIVED / HISTORICAL.** This report records earlier design intent, not proven production readiness. For current validated behavior, unresolved security findings, and testing boundaries, consult [README.md](README.md) and [ARCHITECTURE_SECURITY_AUDIT.md](ARCHITECTURE_SECURITY_AUDIT.md).
+
+---
+
 # Event-Driven Architecture Finalization Summary
 
 ## Date: September 28, 2026
